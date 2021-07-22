@@ -26,9 +26,6 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.List;
 
-import de.javagl.jgltf.model.AccessorModel;
-import de.javagl.jgltf.model.GltfModel;
-import de.javagl.jgltf.model.io.GltfModelReader;
 import de.javagl.obj.Obj;
 import de.javagl.obj.ObjData;
 import de.javagl.obj.ObjReader;
@@ -148,35 +145,6 @@ public class Mesh implements Closeable {
         new VertexBuffer(render, 3, localCoordinates),
         new VertexBuffer(render, 2, textureCoordinates),
         new VertexBuffer(render, 3, normals),
-      };
-
-      IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndices);
-
-      return new Mesh(render, Mesh.PrimitiveMode.TRIANGLES, indexBuffer, vertexBuffers);
-    }
-  }
-
-  public static Mesh createFromGLTFAsset(SampleRender render, String assetFileName) throws IOException {
-    try (InputStream inputStream = render.getAssets().open(assetFileName)) {
-
-      GltfModelReader gltfModelReader = new GltfModelReader();
-      URI uri = URI.create(assetFileName);
-      GltfModel gltfModel = gltfModelReader.read(uri);
-
-      Obj obj = ObjUtils.convertToRenderable(ObjReader.read(inputStream));
-
-      List<AccessorModel> accessors = gltfModel.getAccessorModels();
-
-      // Obtain the data from the OBJ, as direct buffers:
-      IntBuffer vertexIndices = ObjData.getFaceVertexIndices(obj, /*numVerticesPerFace=*/ 3);
-      FloatBuffer localCoordinates = ObjData.getVertices(obj);
-      FloatBuffer textureCoordinates = ObjData.getTexCoords(obj, /*dimensions=*/ 2);
-      FloatBuffer normals = ObjData.getNormals(obj);
-
-      VertexBuffer[] vertexBuffers = {
-              new VertexBuffer(render, 3, localCoordinates),
-              new VertexBuffer(render, 2, textureCoordinates),
-              new VertexBuffer(render, 3, normals),
       };
 
       IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndices);

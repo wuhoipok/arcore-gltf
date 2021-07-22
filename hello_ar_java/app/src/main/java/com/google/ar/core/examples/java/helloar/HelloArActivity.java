@@ -405,7 +405,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGLTFAsset(render, "models/rehab.glb");
+      virtualObjectMesh = Mesh.createFromAsset(render, "models/human.obj");
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
