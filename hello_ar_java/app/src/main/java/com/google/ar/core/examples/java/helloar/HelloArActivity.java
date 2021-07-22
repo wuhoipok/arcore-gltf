@@ -337,7 +337,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Prepare the rendering objects. This involves reading shaders and 3D model files, so may throw
     // an IOException.
     try {
-      planeRenderer = new PlaneRenderer(render);
+      // planeRenderer = new PlaneRenderer(render);
       backgroundRenderer = new BackgroundRenderer(render);
       virtualSceneFramebuffer = new Framebuffer(render, /*width=*/ 1, /*height=*/ 1);
 
@@ -378,19 +378,19 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //      GLError.maybeThrowGLException("Failed to populate DFG texture", "glTexImage2D");
 
       // Point cloud
-      pointCloudShader =
-          Shader.createFromAssets(
-                  render, "shaders/point_cloud.vert", "shaders/point_cloud.frag", /*defines=*/ null)
-              .setVec4(
-                  "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 1.0f})
-              .setFloat("u_PointSize", 5.0f);
-      // four entries per vertex: X, Y, Z, confidence
-      pointCloudVertexBuffer =
-          new VertexBuffer(render, /*numberOfEntriesPerVertex=*/ 4, /*entries=*/ null);
-      final VertexBuffer[] pointCloudVertexBuffers = {pointCloudVertexBuffer};
-      pointCloudMesh =
-          new Mesh(
-              render, Mesh.PrimitiveMode.POINTS, /*indexBuffer=*/ null, pointCloudVertexBuffers);
+//      pointCloudShader =
+//          Shader.createFromAssets(
+//                  render, "shaders/point_cloud.vert", "shaders/point_cloud.frag", /*defines=*/ null)
+//              .setVec4(
+//                  "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 1.0f})
+//              .setFloat("u_PointSize", 5.0f);
+//      // four entries per vertex: X, Y, Z, confidence
+//      pointCloudVertexBuffer =
+//          new VertexBuffer(render, /*numberOfEntriesPerVertex=*/ 4, /*entries=*/ null);
+//      final VertexBuffer[] pointCloudVertexBuffers = {pointCloudVertexBuffer};
+//      pointCloudMesh =
+//          new Mesh(
+//              render, Mesh.PrimitiveMode.POINTS, /*indexBuffer=*/ null, pointCloudVertexBuffers);
 
       // Virtual object to render (ARCore pawn)
 //      Texture virtualObjectAlbedoTexture =
@@ -480,44 +480,44 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // used to draw the background camera image.
     backgroundRenderer.updateDisplayGeometry(frame);
 
-    if (camera.getTrackingState() == TrackingState.TRACKING
-        && (depthSettings.useDepthForOcclusion()
-            || depthSettings.depthColorVisualizationEnabled())) {
-      try (Image depthImage = frame.acquireDepthImage()) {
-        backgroundRenderer.updateCameraDepthTexture(depthImage);
-      } catch (NotYetAvailableException e) {
-        // This normally means that depth data is not available yet. This is normal so we will not
-        // spam the logcat with this.
-      }
-    }
+//    if (camera.getTrackingState() == TrackingState.TRACKING
+//        && (depthSettings.useDepthForOcclusion()
+//            || depthSettings.depthColorVisualizationEnabled())) {
+//      try (Image depthImage = frame.acquireDepthImage()) {
+//        backgroundRenderer.updateCameraDepthTexture(depthImage);
+//      } catch (NotYetAvailableException e) {
+//        // This normally means that depth data is not available yet. This is normal so we will not
+//        // spam the logcat with this.
+//      }
+//    }
 
     // Handle one tap per frame.
-    handleTap(frame, camera);      // COORDINATE INPUT VIA TAPPING IN SPACE.
+    // handleTap(frame, camera);      // COORDINATE INPUT VIA TAPPING IN SPACE.
 
     // Keep the screen unlocked while tracking, but allow it to lock when tracking stops.
     trackingStateHelper.updateKeepScreenOnFlag(camera.getTrackingState());
 
     // Show a message based on whether tracking has failed, if planes are detected, and if the user
     // has placed any objects.
-    String message = null;
-    if (camera.getTrackingState() == TrackingState.PAUSED) {
-      if (camera.getTrackingFailureReason() == TrackingFailureReason.NONE) {
-        message = SEARCHING_PLANE_MESSAGE;
-      } else {
-        message = TrackingStateHelper.getTrackingFailureReasonString(camera);
-      }
-    } else if (hasTrackingPlane()) {
-      if (anchors.isEmpty()) {
-        message = WAITING_FOR_TAP_MESSAGE;
-      }
-    } else {
-      message = SEARCHING_PLANE_MESSAGE;
-    }
-    if (message == null) {
-      messageSnackbarHelper.hide(this);
-    } else {
-      messageSnackbarHelper.showMessage(this, message);
-    }
+//    String message = null;
+//    if (camera.getTrackingState() == TrackingState.PAUSED) {
+//      if (camera.getTrackingFailureReason() == TrackingFailureReason.NONE) {
+//        message = SEARCHING_PLANE_MESSAGE;
+//      } else {
+//        message = TrackingStateHelper.getTrackingFailureReasonString(camera);
+//      }
+//    } else if (hasTrackingPlane()) {
+//      if (anchors.isEmpty()) {
+//        message = WAITING_FOR_TAP_MESSAGE;
+//      }
+//    } else {
+//      message = SEARCHING_PLANE_MESSAGE;
+//    }
+//    if (message == null) {
+//      messageSnackbarHelper.hide(this);
+//    } else {
+//      messageSnackbarHelper.showMessage(this, message);
+//    }
 
     // -- Draw background
 
@@ -528,36 +528,33 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     }
 
     // If not tracking, don't draw 3D objects.
-    if (camera.getTrackingState() == TrackingState.PAUSED) {
-      return;
-    }
+//    if (camera.getTrackingState() == TrackingState.PAUSED) {
+//      return;
+//    }
 
     // -- Draw non-occluded virtual objects (planes, point cloud)
 
     // Get projection matrix.
     camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
 
-    // Get camera matrix and draw.
-    camera.getViewMatrix(viewMatrix, 0);
-
     // Visualize tracked points.
     // Use try-with-resources to automatically release the point cloud.
-    try (PointCloud pointCloud = frame.acquirePointCloud()) {
-      if (pointCloud.getTimestamp() > lastPointCloudTimestamp) {
-        pointCloudVertexBuffer.set(pointCloud.getPoints());
-        lastPointCloudTimestamp = pointCloud.getTimestamp();
-      }
-      Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
-      pointCloudShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
-      render.draw(pointCloudMesh, pointCloudShader);
-    }
-
-    // Visualize planes.
-    planeRenderer.drawPlanes(
-        render,
-        session.getAllTrackables(Plane.class),
-        camera.getDisplayOrientedPose(),
-        projectionMatrix);
+//    try (PointCloud pointCloud = frame.acquirePointCloud()) {
+//      if (pointCloud.getTimestamp() > lastPointCloudTimestamp) {
+//        pointCloudVertexBuffer.set(pointCloud.getPoints());
+//        lastPointCloudTimestamp = pointCloud.getTimestamp();
+//      }
+//      Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
+//      pointCloudShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
+//      render.draw(pointCloudMesh, pointCloudShader);
+//    }
+//
+//    // Visualize planes.
+//    planeRenderer.drawPlanes(
+//        render,
+//        session.getAllTrackables(Plane.class),
+//        camera.getDisplayOrientedPose(),
+//        projectionMatrix);
 
     // -- Draw occluded virtual objects
 
@@ -566,24 +563,49 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
-    for (Anchor anchor : anchors) {
-      if (anchor.getTrackingState() != TrackingState.TRACKING) {
-        continue;
-      }
 
-      // Get the current pose of an Anchor in world space. The Anchor pose is updated
-      // during calls to session.update() as ARCore refines its estimate of the world.
-      anchor.getPose().toMatrix(modelMatrix, 0);
+    modelMatrix[0] = 1.0f;
+    modelMatrix[1] = 0.0f;
+    modelMatrix[2] = 0.0f;
+    modelMatrix[3] = 0.0f;
+    modelMatrix[4] = 0.0f;
+    modelMatrix[5] = 1.0f;
+    modelMatrix[6] = 0.0f;
+    modelMatrix[7] = 0.0f;
+    modelMatrix[8] = 0.0f;
+    modelMatrix[9] = 0.0f;
+    modelMatrix[10] = 1.0f;
+    modelMatrix[11] = 0.0f;
+    modelMatrix[12] = 0.0f;
+    modelMatrix[13] = -0.45f;
+    modelMatrix[14] = -1.25f;
+    modelMatrix[15] = 1.0f;
 
-      // Calculate model/view/projection matrices
-      Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0);
-      Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
+    viewMatrix[0] = 1.0f;
+    viewMatrix[1] = 0.0f;
+    viewMatrix[2] = 0.0f;
+    viewMatrix[3] = 0.0f;
+    viewMatrix[4] = 0.0f;
+    viewMatrix[5] = 1.0f;
+    viewMatrix[6] = 0.0f;
+    viewMatrix[7] = 0.0f;
+    viewMatrix[8] = 0.0f;
+    viewMatrix[9] = 0.0f;
+    viewMatrix[10] = 1.0f;
+    viewMatrix[11] = 0.0f;
+    viewMatrix[12] = 0.0f;
+    viewMatrix[13] = 0.0f;
+    viewMatrix[14] = 0.0f;
+    viewMatrix[15] = 1.0f;
 
-      // Update shader properties and draw
-      // virtualObjectShader.setMat4("u_ModelView", modelViewMatrix);
-      virtualObjectShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
-      render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
-    }
+    // Calculate model/view/projection matrices
+    Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+    Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
+
+    // Update shader properties and draw
+    // virtualObjectShader.setMat4("u_ModelView", modelViewMatrix);
+    virtualObjectShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
+    render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
 
     // Compose the virtual scene with the background.
     backgroundRenderer.drawVirtualScene(render, virtualSceneFramebuffer, Z_NEAR, Z_FAR);
