@@ -162,6 +162,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
   private final float[] modelMatrix = new float[16];
+  private final float[] rotationMatrix = new float[16];
   private final float[] viewMatrix = new float[16];
   private final float[] projectionMatrix = new float[16];
   private final float[] modelViewMatrix = new float[16]; // view x model
@@ -581,6 +582,24 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     modelMatrix[14] = -1.25f;
     modelMatrix[15] = 1.0f;
 
+    rotationMatrix[0] = (float) Math.cos(5.0f * System.nanoTime() / 1000000000);
+    rotationMatrix[1] = 0.0f;
+    rotationMatrix[2] = (float) -Math.sin(5.0f * System.nanoTime() / 1000000000);
+    rotationMatrix[3] = 0.0f;
+    rotationMatrix[4] = 0.0f;
+    rotationMatrix[5] = 1.0f;
+    rotationMatrix[6] = 0.0f;
+    rotationMatrix[7] = 0.0f;
+    rotationMatrix[8] = (float) Math.sin(5.0f * System.nanoTime() / 1000000000);
+    rotationMatrix[9] = 0.0f;
+    rotationMatrix[10] = (float) Math.cos(5.0f * System.nanoTime() / 1000000000);
+    rotationMatrix[11] = 0.0f;
+    rotationMatrix[12] = 0.0f;
+    rotationMatrix[13] = 0.0f;
+    rotationMatrix[14] = 0.0f;
+    rotationMatrix[15] = 1.0f;
+
+
     viewMatrix[0] = 1.0f;
     viewMatrix[1] = 0.0f;
     viewMatrix[2] = 0.0f;
@@ -600,6 +619,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Calculate model/view/projection matrices
     Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+    Matrix.multiplyMM(modelViewMatrix, 0, modelViewMatrix, 0, rotationMatrix, 0);
     Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
 
     // Update shader properties and draw
