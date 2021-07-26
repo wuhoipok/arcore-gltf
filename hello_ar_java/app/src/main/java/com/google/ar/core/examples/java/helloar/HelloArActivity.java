@@ -406,7 +406,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromAsset(render, "models/human.obj");
+      virtualObjectMesh = Mesh.createFromAsset(render, "models/rehab.glb");
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
@@ -598,7 +598,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     rotationMatrix[13] = 0.0f;
     rotationMatrix[14] = 0.0f;
     rotationMatrix[15] = 1.0f;
-
 
     viewMatrix[0] = 1.0f;
     viewMatrix[1] = 0.0f;
