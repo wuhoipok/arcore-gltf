@@ -68,6 +68,7 @@ import com.google.ar.core.examples.java.common.samplerender.VertexBuffer;
 import com.google.ar.core.examples.java.common.samplerender.arcore.BackgroundRenderer;
 import com.google.ar.core.examples.java.common.samplerender.arcore.PlaneRenderer;
 import com.google.ar.core.examples.java.common.samplerender.arcore.SpecularCubemapFilter;
+import com.google.ar.core.examples.java.common.samplerender.tiny_gltf_loader;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.NotYetAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
@@ -406,7 +407,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromAsset(render, "models/rehab.glb");
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/human.obj");
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
@@ -435,6 +436,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
   @Override
   public void onDrawFrame(SampleRender render) {
+
     if (session == null) {
       return;
     }

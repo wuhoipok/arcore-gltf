@@ -1,18 +1,20 @@
 package com.google.ar.core.examples.java.common.samplerender;
 
-import java.util.List;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 public class tiny_gltf_loader
 {
 
-    private List<Float> vertices;
-    private List<Float> normals;
-    private List<Float> texcoords;
+    private IntBuffer indices;
+    private FloatBuffer vertices;
+    private FloatBuffer normals;
+    private FloatBuffer texcoords;
 
     static
     {
         System.loadLibrary("tiny_gltf");
     }
 
-    public native void loadBinaryFromFile();
+    public native void loadBinaryFromFile(String filename);
 }

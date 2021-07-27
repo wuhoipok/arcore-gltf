@@ -161,6 +161,10 @@ public class Mesh implements Closeable {
 
   public static Mesh createFromGltfAsset(SampleRender render, String assetFileName) throws IOException {
 
+    tiny_gltf_loader loader = new tiny_gltf_loader();
+
+    loader.loadBinaryFromFile(assetFileName);
+
     try (InputStream inputStream = render.getAssets().open(assetFileName)) {
       Obj obj = ObjUtils.convertToRenderable(ObjReader.read(inputStream));
 
