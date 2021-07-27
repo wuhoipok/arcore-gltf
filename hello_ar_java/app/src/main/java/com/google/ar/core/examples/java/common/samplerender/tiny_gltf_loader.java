@@ -16,5 +16,16 @@ public class tiny_gltf_loader
         System.loadLibrary("tiny_gltf");
     }
 
+    public IntBuffer getIndices() { return indices; }
+
+    public FloatBuffer getVertices() { return vertices; }
+
+    public FloatBuffer getNormals()
+    {
+        return normals;
+    }
+
+    public FloatBuffer getTexcoords() { return texcoords; }
+
     public native void loadBinaryFromFile(String filename);
 }
