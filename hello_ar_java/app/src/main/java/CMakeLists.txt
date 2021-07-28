@@ -18,3 +18,16 @@ add_library( # Specifies the name of the library.
 
         # Provides a relative path to your source file(s).
         com_google_ar_core_examples_java_common_samplerender_tiny_gltf_loader.cpp)
+
+find_library( # Sets the name of the path variable.
+        android-lib
+
+        # Specifies the name of the NDK library that
+        # you want CMake to locate.
+        android )
+
+target_link_libraries( # set the target
+        tiny_gltf
+
+        # the library to link
+        android)

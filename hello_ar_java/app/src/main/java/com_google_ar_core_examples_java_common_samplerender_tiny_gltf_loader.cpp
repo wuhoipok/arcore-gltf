@@ -4,16 +4,19 @@
 #include "com_google_ar_core_examples_java_common_samplerender_tiny_gltf_loader.h"
 
 #define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_ANDROID_LOAD_FROM_ASSETS
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "tiny_gltf.h"
 
 #include <iostream>
+#include <android/asset_manager_jni.h>
 
 using namespace tinygltf;
 
 JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender_tiny_1gltf_1loader_loadBinaryFromFile
-(JNIEnv* env, jobject obj, jstring filename)
+(JNIEnv* env, jobject obj, jstring filename, jobject assetManager)
 {
     // load the model
     Model model;
@@ -21,8 +24,11 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     std::string err;
     std::string warn;
 
+    tinygltf::asset_manager = AAssetManager_fromJava(env, assetManager);
+
     // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, argv[1]);
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn,env->GetStringUTFChars(filename, (jboolean*) false)); // for binary glTF(.glb)
+    std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
+    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file); // for binary glTF(.glb)
 
     if (!warn.empty())
     {
@@ -95,14 +101,41 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
 
-    // Get the UserData fields to be set
-    jfieldID inidexField = env->GetFieldID(loaderClass , "indices", "Ljava/nio/IntBuffer;");
-    jfieldID vertexField = env->GetFieldID(loaderClass , "vertices", "Ljava/nio/FloatBuffer;");
-    jfieldID normalField = env->GetFieldID(loaderClass , "normals", "Ljava/nio/FloatBuffer;");
-    jfieldID texcoordField = env->GetFieldID(loaderClass , "texcoords", "Ljava/nio/FloatBuffer;");
+    jbyteArray indexArray = env->NewByteArray(indices.size());
+    env->SetByteArrayRegion (indexArray, 0, indices.size(), reinterpret_cast<jbyte*>(indices.data()));
 
-    env->SetObjectField(obj, inidexField, indices.data());
-    env->SetObjectField(obj, vertexField, vertices.data());
-    env->SetObjectField(obj, normalField, normals.data());
-    env->SetObjectField(obj, texcoordField, texcoords.data());
+    jbyteArray vertexArray = env->NewByteArray( vertices.size());
+    env->SetByteArrayRegion (vertexArray, 0, vertices.size(), reinterpret_cast<jbyte*>(vertices.data()));
+
+    jbyteArray normalArray = env->NewByteArray(normals.size());
+    env->SetByteArrayRegion (normalArray, 0, normals.size(), reinterpret_cast<jbyte*>(normals.data()));
+
+    jbyteArray texcoordArray = env->NewByteArray(texcoords.size());
+    env->SetByteArrayRegion (texcoordArray, 0, texcoords.size(), reinterpret_cast<jbyte*>(texcoords.data()));
+
+    jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[B");
+    jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[B");
+    jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[B");
+    jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[B");
+
+    jbyteArray indexBytes = static_cast<jbyteArray>(env->GetObjectField(obj, indexField));
+    jbyteArray vertexBytes = static_cast<jbyteArray>(env->GetObjectField(obj, vertexField));
+    jbyteArray normalBytes = static_cast<jbyteArray>(env->GetObjectField(obj, normalField));
+    jbyteArray texcoordBytes = static_cast<jbyteArray>(env->GetObjectField(obj, texcoordField));
+
+    jbyte* b = env->GetByteArrayElements(indexBytes, NULL);
+    memcpy(indexArray, b, indices.size());
+    env->ReleaseByteArrayElements(indexBytes, b, 0);
+
+    b = env->GetByteArrayElements(vertexBytes, NULL);
+    memcpy(vertexArray, b, vertices.size());
+    env->ReleaseByteArrayElements(vertexBytes, b, 0);
+
+    b = env->GetByteArrayElements(normalBytes, NULL);
+    memcpy(normalArray, b, normals.size());
+    env->ReleaseByteArrayElements(normalBytes, b, 0);
+
+    b = env->GetByteArrayElements(texcoordBytes, NULL);
+    memcpy(texcoordArray, b, texcoords.size());
+    env->ReleaseByteArrayElements(texcoordBytes, b, 0);
 }

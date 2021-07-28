@@ -163,7 +163,9 @@ public class Mesh implements Closeable {
 
     tiny_gltf_loader loader = new tiny_gltf_loader();
 
-    loader.loadBinaryFromFile(assetFileName);
+    AssetManager assetManager = render.getAssets();
+
+    loader.loadBinaryFromFile(assetFileName, assetManager);
 
     try (InputStream inputStream = render.getAssets().open(assetFileName)) {
       Obj obj = ObjUtils.convertToRenderable(ObjReader.read(inputStream));
