@@ -15,6 +15,71 @@
 
 using namespace tinygltf;
 
+struct meshData
+{
+    std::vector<int> indices;
+    std::vector<float> vertices;
+    std::vector<float> normals;
+    std::vector<float> texcoords;
+};
+
+void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, meshData& object)
+{
+    const tinygltf::Mesh& mesh = model.meshes[node.mesh];
+
+    if (mesh.primitives.size() > 0)
+    {
+        for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); primitiveIndex++)
+        {
+            const tinygltf::Primitive &primitive = mesh.primitives[primitiveIndex];
+            const tinygltf::Accessor &indexAccessor = model.accessors[primitive.indices];
+            const tinygltf::BufferView &indexBufferView = model.bufferViews[indexAccessor.bufferView];
+            const tinygltf::Buffer &indexBuffer = model.buffers[indexBufferView.buffer];
+
+            unsigned short* data = (unsigned short*) (indexBuffer.data.data() + indexBufferView.byteOffset);
+            std::vector<unsigned short> indexData { data, data + indexBufferView.byteLength / sizeof(unsigned short) };
+
+            object.indices.insert(std::end(object.indices), std::begin(indexData),
+                                  std::end(indexData));
+
+            for (const auto &attrib : primitive.attributes)
+            {
+                const tinygltf::Accessor &accessor = model.accessors[attrib.second];
+                const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+                const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
+
+                float* data = (float*) (buffer.data.data() + bufferView.byteOffset);
+                std::vector<float> extractedData { data, data + bufferView.byteLength / sizeof(float) };
+
+                if (attrib.first.compare("POSITION") == 0)
+                {
+                    object.vertices.insert(std::end(object.vertices), std::begin(extractedData),
+                                           std::end(extractedData));
+                }
+                else if (attrib.first.compare("NORMAL") == 0)
+                {
+                    object.normals.insert(std::end(object.normals), std::begin(extractedData),
+                                          std::end(extractedData));
+                }
+                else if (attrib.first.compare("TEXCOORD_0") == 0)
+                {
+                    object.texcoords.insert(std::end(object.texcoords), std::begin(extractedData),
+                                            std::end(extractedData));
+                }
+                else
+                {
+                    continue;
+                }
+            }
+        }
+    }
+
+    for (size_t childrenIndex = 0; childrenIndex < node.children.size(); childrenIndex++)
+    {
+        retrieveNode(model.nodes[node.children[childrenIndex]], model, object);
+    }
+}
+
 JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender_tiny_1gltf_1loader_loadBinaryFromFile
 (JNIEnv* env, jobject obj, jstring filename, jobject assetManager)
 {
@@ -46,72 +111,32 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
         return;
     }
 
+    meshData object;
+
     // parse the data
     const tinygltf::Scene& scene = model.scenes[model.defaultScene];
-
-    std::vector<int> indices;
-    std::vector<float> vertices;
-    std::vector<float> normals;
-    std::vector<float> texcoords;
 
     for (size_t nodeIndex = 0; nodeIndex < scene.nodes.size(); nodeIndex++)
     {
         const tinygltf::Node& node = model.nodes[scene.nodes[nodeIndex]];
-        const tinygltf::Mesh& mesh = model.meshes[node.mesh];
 
-        for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); primitiveIndex++)
-        {
-            const tinygltf::Primitive& primitive = mesh.primitives[primitiveIndex];
-            const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
-            const tinygltf::BufferView& indexBufferView = model.bufferViews[indexAccessor.bufferView];
-            const tinygltf::Buffer& indexBuffer = model.buffers[indexBufferView.buffer];
-
-            std::vector<int> indexData (indexBuffer.data.begin() + indexBufferView.byteOffset, indexBuffer.data.begin() + indexBufferView.byteOffset + indexBufferView.byteLength);
-
-            indices.insert(std::end(indices), std::begin(indexData), std::end(indexData));
-
-            for (const auto& attrib : primitive.attributes)
-            {
-                const tinygltf::Accessor& accessor = model.accessors[attrib.second];
-                const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-                const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-
-                std::vector<float> data (buffer.data.begin() + bufferView.byteOffset, buffer.data.begin() + bufferView.byteOffset + bufferView.byteLength);
-
-                if (attrib.first.compare("POSITION") == 0)
-                {
-                    vertices.insert(std::end(vertices), std::begin(data), std::end(data));
-                }
-                else if (attrib.first.compare("NORMAL") == 0)
-                {
-                    normals.insert(std::end(normals), std::begin(data), std::end(data));
-                }
-                else if (attrib.first.compare("TEXCOORD_0") == 0)
-                {
-                    texcoords.insert(std::end(texcoords), std::begin(data), std::end(data));
-                }
-                else
-                {
-                    continue;
-                }
-            }
-        }
+        retrieveNode(node, model, object);
     }
 
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
 
-    jbyteArray indexArray = env->NewByteArray(indices.size());
-    env->SetByteArrayRegion (indexArray, 0, indices.size(), reinterpret_cast<jbyte*>(indices.data()));
+    jbyteArray indexArray = env->NewByteArray(object.indices.size());
+    env->SetByteArrayRegion (indexArray, 0, object.indices.size(), reinterpret_cast<jbyte*>(object.indices.data()));
 
-    jbyteArray vertexArray = env->NewByteArray( vertices.size());
-    env->SetByteArrayRegion (vertexArray, 0, vertices.size(), reinterpret_cast<jbyte*>(vertices.data()));
+    jbyteArray vertexArray = env->NewByteArray(object.vertices.size());
+    env->SetByteArrayRegion (vertexArray, 0, object.vertices.size(), reinterpret_cast<jbyte*>(object.vertices.data()));
 
-    jbyteArray normalArray = env->NewByteArray(normals.size());
-    env->SetByteArrayRegion (normalArray, 0, normals.size(), reinterpret_cast<jbyte*>(normals.data()));
+    jbyteArray normalArray = env->NewByteArray(object.normals.size());
+    env->SetByteArrayRegion (normalArray, 0, object.normals.size(), reinterpret_cast<jbyte*>(object.normals.data()));
 
-    jbyteArray texcoordArray = env->NewByteArray(texcoords.size());
-    env->SetByteArrayRegion (texcoordArray, 0, texcoords.size(), reinterpret_cast<jbyte*>(texcoords.data()));
+    jbyteArray texcoordArray = env->NewByteArray(object.texcoords.size());
+    env->SetByteArrayRegion (texcoordArray, 0, object.texcoords.size(), reinterpret_cast<jbyte*>(object.texcoords.data()));
 
     jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[B");
     jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[B");
@@ -124,18 +149,18 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     jbyteArray texcoordBytes = static_cast<jbyteArray>(env->GetObjectField(obj, texcoordField));
 
     jbyte* b = env->GetByteArrayElements(indexBytes, NULL);
-    memcpy(indexArray, b, indices.size());
+    memcpy(indexArray, b, object.indices.size());
     env->ReleaseByteArrayElements(indexBytes, b, 0);
 
     b = env->GetByteArrayElements(vertexBytes, NULL);
-    memcpy(vertexArray, b, vertices.size());
+    memcpy(vertexArray, b, object.vertices.size());
     env->ReleaseByteArrayElements(vertexBytes, b, 0);
 
     b = env->GetByteArrayElements(normalBytes, NULL);
-    memcpy(normalArray, b, normals.size());
+    memcpy(normalArray, b, object.normals.size());
     env->ReleaseByteArrayElements(normalBytes, b, 0);
 
     b = env->GetByteArrayElements(texcoordBytes, NULL);
-    memcpy(texcoordArray, b, texcoords.size());
+    memcpy(texcoordArray, b, object.texcoords.size());
     env->ReleaseByteArrayElements(texcoordBytes, b, 0);
 }
