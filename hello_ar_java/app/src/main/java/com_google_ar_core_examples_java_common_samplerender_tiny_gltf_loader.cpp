@@ -23,6 +23,36 @@ struct meshData
     std::vector<float> texcoords;
 };
 
+template <typename T>
+void copyToJavaClass(JNIEnv* env, jobject obj, const std::vector<T>& data, jfieldID fieldId)
+{
+
+}
+
+template <>
+void copyToJavaClass<int>(JNIEnv* env, jobject obj, const std::vector<int>& data, jfieldID fieldId)
+{
+    jint intArray[data.size()];
+    std::copy(data.begin(), data.end(), intArray);
+
+    jintArray outIntArray = env->NewIntArray(data.size());
+    env->SetIntArrayRegion(outIntArray, 0, data.size(), intArray);
+
+    env->SetObjectField(obj, fieldId, outIntArray);
+}
+
+template <>
+void copyToJavaClass<float>(JNIEnv* env, jobject obj, const std::vector<float>& data, jfieldID fieldId)
+{
+    jfloat floatArray[data.size()];
+    std::copy(data.begin(), data.end(), floatArray);
+
+    jfloatArray outFloatArray = env->NewFloatArray(data.size());
+    env->SetFloatArrayRegion(outFloatArray, 0, data.size(), floatArray);
+
+    env->SetObjectField(obj, fieldId, outFloatArray);
+}
+
 void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, meshData& object)
 {
     const tinygltf::Mesh& mesh = model.meshes[node.mesh];
@@ -126,41 +156,13 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
 
-    jbyteArray indexArray = env->NewByteArray(object.indices.size());
-    env->SetByteArrayRegion (indexArray, 0, object.indices.size(), reinterpret_cast<jbyte*>(object.indices.data()));
-
-    jbyteArray vertexArray = env->NewByteArray(object.vertices.size());
-    env->SetByteArrayRegion (vertexArray, 0, object.vertices.size(), reinterpret_cast<jbyte*>(object.vertices.data()));
-
-    jbyteArray normalArray = env->NewByteArray(object.normals.size());
-    env->SetByteArrayRegion (normalArray, 0, object.normals.size(), reinterpret_cast<jbyte*>(object.normals.data()));
-
-    jbyteArray texcoordArray = env->NewByteArray(object.texcoords.size());
-    env->SetByteArrayRegion (texcoordArray, 0, object.texcoords.size(), reinterpret_cast<jbyte*>(object.texcoords.data()));
-
     jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[B");
     jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[B");
     jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[B");
     jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[B");
 
-    jbyteArray indexBytes = static_cast<jbyteArray>(env->GetObjectField(obj, indexField));
-    jbyteArray vertexBytes = static_cast<jbyteArray>(env->GetObjectField(obj, vertexField));
-    jbyteArray normalBytes = static_cast<jbyteArray>(env->GetObjectField(obj, normalField));
-    jbyteArray texcoordBytes = static_cast<jbyteArray>(env->GetObjectField(obj, texcoordField));
-
-    jbyte* b = env->GetByteArrayElements(indexBytes, NULL);
-    memcpy(indexArray, b, object.indices.size());
-    env->ReleaseByteArrayElements(indexBytes, b, 0);
-
-    b = env->GetByteArrayElements(vertexBytes, NULL);
-    memcpy(vertexArray, b, object.vertices.size());
-    env->ReleaseByteArrayElements(vertexBytes, b, 0);
-
-    b = env->GetByteArrayElements(normalBytes, NULL);
-    memcpy(normalArray, b, object.normals.size());
-    env->ReleaseByteArrayElements(normalBytes, b, 0);
-
-    b = env->GetByteArrayElements(texcoordBytes, NULL);
-    memcpy(texcoordArray, b, object.texcoords.size());
-    env->ReleaseByteArrayElements(texcoordBytes, b, 0);
+    copyToJavaClass<int>(env, obj, object.indices, indexField);
+    copyToJavaClass<float>(env, obj, object.vertices, vertexField);
+    copyToJavaClass<float>(env, obj, object.normals, normalField);
+    copyToJavaClass<float>(env, obj, object.texcoords, texcoordField);
 }

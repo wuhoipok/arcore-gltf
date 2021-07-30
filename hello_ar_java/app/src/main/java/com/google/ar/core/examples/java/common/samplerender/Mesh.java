@@ -25,6 +25,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -168,13 +169,12 @@ public class Mesh implements Closeable {
     loader.loadBinaryFromFile(assetFileName, assetManager);
 
     try (InputStream inputStream = render.getAssets().open(assetFileName)) {
-      Obj obj = ObjUtils.convertToRenderable(ObjReader.read(inputStream));
 
       // Obtain the data from the OBJ, as direct buffers:
-      IntBuffer vertexIndices = ObjData.getFaceVertexIndices(obj, /*numVerticesPerFace=*/ 3);
-      FloatBuffer localCoordinates = ObjData.getVertices(obj);
-      FloatBuffer textureCoordinates = ObjData.getTexCoords(obj, /*dimensions=*/ 2);
-      FloatBuffer normals = ObjData.getNormals(obj);
+      IntBuffer vertexIndices = loader.getIndices();
+      FloatBuffer localCoordinates = loader.getVertices();
+      FloatBuffer textureCoordinates = loader.getTexcoords();
+      FloatBuffer normals = loader.getNormals();
 
       VertexBuffer[] vertexBuffers = {
               new VertexBuffer(render, 3, localCoordinates),
