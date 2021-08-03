@@ -32,8 +32,7 @@ void copyToJavaClass(JNIEnv* env, jobject obj, const std::vector<T>& data, jfiel
 template <>
 void copyToJavaClass<int>(JNIEnv* env, jobject obj, const std::vector<int>& data, jfieldID fieldId)
 {
-    jint intArray[data.size()];
-    std::copy(data.begin(), data.end(), intArray);
+    const jint* intArray = data.data();
 
     jintArray outIntArray = env->NewIntArray(data.size());
     env->SetIntArrayRegion(outIntArray, 0, data.size(), intArray);
@@ -44,8 +43,7 @@ void copyToJavaClass<int>(JNIEnv* env, jobject obj, const std::vector<int>& data
 template <>
 void copyToJavaClass<float>(JNIEnv* env, jobject obj, const std::vector<float>& data, jfieldID fieldId)
 {
-    jfloat floatArray[data.size()];
-    std::copy(data.begin(), data.end(), floatArray);
+    const jfloat* floatArray = data.data();
 
     jfloatArray outFloatArray = env->NewFloatArray(data.size());
     env->SetFloatArrayRegion(outFloatArray, 0, data.size(), floatArray);
@@ -101,6 +99,34 @@ void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, mesh
                     continue;
                 }
             }
+
+//            for (const auto& targets : primitive.targets)
+//            {
+//                for (const auto& target : targets)
+//                {
+//                    const tinygltf::Accessor &accessor = model.accessors[target.second];
+//                    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+//                    const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
+//
+//                    float* data = (float*) (buffer.data.data() + bufferView.byteOffset);
+//                    std::vector<float> extractedData { data, data + bufferView.byteLength / sizeof(float) };
+//
+//                    if (target.first.compare("POSITION") == 0)
+//                    {
+//                        object.vertices.insert(std::end(object.vertices), std::begin(extractedData),
+//                                               std::end(extractedData));
+//                    }
+//                    else if (target.first.compare("NORMAL") == 0)
+//                    {
+//                        object.normals.insert(std::end(object.normals), std::begin(extractedData),
+//                                              std::end(extractedData));
+//                    }
+//                    else
+//                    {
+//                        continue;
+//                    }
+//                }
+//            }
         }
     }
 
@@ -114,15 +140,16 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 (JNIEnv* env, jobject obj, jstring filename, jobject assetManager)
 {
     // load the model
-    Model model;
-    TinyGLTF loader;
+    Model model{};
+    TinyGLTF loader{};
     std::string err;
     std::string warn;
 
     tinygltf::asset_manager = AAssetManager_fromJava(env, assetManager);
 
     // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, argv[1]);
-    std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
+    std::string file = "models/rehab.glb";
+    // std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
     bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file); // for binary glTF(.glb)
 
     if (!warn.empty())
@@ -156,10 +183,10 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
 
-    jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[B");
-    jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[B");
-    jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[B");
-    jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[B");
+    jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[I");
+    jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[F");
+    jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[F");
+    jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[F");
 
     copyToJavaClass<int>(env, obj, object.indices, indexField);
     copyToJavaClass<float>(env, obj, object.vertices, vertexField);

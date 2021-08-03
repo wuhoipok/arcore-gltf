@@ -3,17 +3,16 @@ package com.google.ar.core.examples.java.common.samplerender;
 import android.content.res.AssetManager;
 
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 public class tiny_gltf_loader
 {
 
-    private byte[] indices;
-    private byte[] vertices;
-    private byte[] normals;
-    private byte[] texcoords;
+    private int[] indices;
+    private float[] vertices;
+    private float[] normals;
+    private float[] texcoords;
 
     static
     {
@@ -22,22 +21,34 @@ public class tiny_gltf_loader
 
     public IntBuffer getIndices()
     {
-        return ByteBuffer.allocateDirect(indices.length).put(indices).asIntBuffer();
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * indices.length);
+        IntBuffer intBuffer = buffer.asIntBuffer();
+        intBuffer.put(indices);
+        return intBuffer;
     }
 
     public FloatBuffer getVertices()
     {
-        return ByteBuffer.allocateDirect(vertices.length).put(vertices).asFloatBuffer();
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * vertices.length);
+        FloatBuffer floatBuffer = buffer.asFloatBuffer();
+        floatBuffer.put(vertices);
+        return floatBuffer;
     }
 
     public FloatBuffer getNormals()
     {
-        return ByteBuffer.allocateDirect(normals.length).put(normals).asFloatBuffer();
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * normals.length);
+        FloatBuffer floatBuffer = buffer.asFloatBuffer();
+        floatBuffer.put(normals);
+        return floatBuffer;
     }
 
     public FloatBuffer getTexcoords()
     {
-        return ByteBuffer.allocateDirect(texcoords.length).put(texcoords).asFloatBuffer();
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * texcoords.length);
+        FloatBuffer floatBuffer = buffer.asFloatBuffer();
+        floatBuffer.put(texcoords);
+        return floatBuffer;
     }
 
     public native void loadBinaryFromFile(String filename, AssetManager assetManager);

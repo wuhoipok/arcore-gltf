@@ -181,8 +181,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
 
     // Set up touch listener.
-    tapHelper = new TapHelper(/*context=*/ this);
-    surfaceView.setOnTouchListener(tapHelper);
+//    tapHelper = new TapHelper(/*context=*/ this);
+//    surfaceView.setOnTouchListener(tapHelper);
 
     // Set up renderer.
     render = new SampleRender(surfaceView, this, getAssets());
@@ -407,7 +407,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/rehab.glb");
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/Duck.glb");
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
