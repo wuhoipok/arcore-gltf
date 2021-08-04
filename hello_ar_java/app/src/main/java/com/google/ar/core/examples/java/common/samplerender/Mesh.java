@@ -168,21 +168,21 @@ public class Mesh implements Closeable {
 
     loader.loadBinaryFromFile(assetFileName, assetManager);
 
-    try (InputStream inputStream = render.getAssets().open(assetFileName)) {
+    try (InputStream ignored = render.getAssets().open(assetFileName)) {
 
       // Obtain the data from the OBJ, as direct buffers:
-      IntBuffer vertexIndices = loader.getIndices();
-      FloatBuffer localCoordinates = loader.getVertices();
-      FloatBuffer textureCoordinates = loader.getTexcoords();
-      FloatBuffer normals = loader.getNormals();
+      IntBuffer vertexIndicesGltf = loader.getIndices();
+      FloatBuffer localCoordinatesGltf = loader.getVertices();
+      FloatBuffer textureCoordinatesGltf = loader.getTexcoords();
+      FloatBuffer normalsGltf = loader.getNormals();
 
       VertexBuffer[] vertexBuffers = {
-              new VertexBuffer(render, 3, localCoordinates),
-              new VertexBuffer(render, 2, textureCoordinates),
-              new VertexBuffer(render, 3, normals),
+              new VertexBuffer(render, 3, localCoordinatesGltf),
+              new VertexBuffer(render, 2, textureCoordinatesGltf),
+              new VertexBuffer(render, 3, normalsGltf),
       };
 
-      IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndices);
+      IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndicesGltf);
 
       return new Mesh(render, Mesh.PrimitiveMode.TRIANGLES, indexBuffer, vertexBuffers);
     }

@@ -407,7 +407,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/Duck.glb");
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/Box.glb");
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
@@ -581,7 +581,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     modelMatrix[11] = 0.0f;
     modelMatrix[12] = 0.0f;
     modelMatrix[13] = -0.45f;
-    modelMatrix[14] = -1.25f;
+    modelMatrix[14] = -5.0f;
     modelMatrix[15] = 1.0f;
 
     rotationMatrix[0] = (float) Math.cos(5.0f * System.nanoTime() / 1000000000);
@@ -619,8 +619,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     viewMatrix[15] = 1.0f;
 
     // Calculate model/view/projection matrices
-    Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0);
-    Matrix.multiplyMM(modelViewMatrix, 0, modelViewMatrix, 0, rotationMatrix, 0);
+    Matrix.multiplyMM(modelMatrix, 0, modelMatrix, 0, rotationMatrix, 0);
+    Matrix.multiplyMM(modelViewMatrix, 0, modelMatrix, 0, viewMatrix, 0);
     Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
 
     // Update shader properties and draw

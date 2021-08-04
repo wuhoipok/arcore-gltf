@@ -147,9 +147,7 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 
     tinygltf::asset_manager = AAssetManager_fromJava(env, assetManager);
 
-    // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, argv[1]);
-    std::string file = "models/rehab.glb";
-    // std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
+    std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
     bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file); // for binary glTF(.glb)
 
     if (!warn.empty())
