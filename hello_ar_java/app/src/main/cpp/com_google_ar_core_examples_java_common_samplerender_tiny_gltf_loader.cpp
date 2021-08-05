@@ -169,20 +169,16 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 
     if (curl)
     {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/Box.glb");
+        curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, false);
         res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
-
-        std::cout << readBuffer << std::endl;
     }
 
-    tinygltf::asset_manager = AAssetManager_fromJava(env, assetManager);
-
-    std::string file = env->GetStringUTFChars(filename, (jboolean*) false);
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file); // for binary glTF(.glb)
+    std::vector<unsigned char> file { readBuffer.begin(), readBuffer.end() };
+    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file, "human/glb"); // for binary glTF(.glb)
 
     if (!warn.empty())
     {

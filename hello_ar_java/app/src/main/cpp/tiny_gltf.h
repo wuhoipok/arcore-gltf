@@ -1317,7 +1317,8 @@ class TinyGLTF {
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadBinaryFromFile(Model *model, std::string *err, std::string *warn,
-                          const std::string &filename,
+                          const std::vector<unsigned char> &file,
+                          const std::string& filename,
                           unsigned int check_sections = REQUIRE_VERSION);
 
   ///
@@ -6265,35 +6266,14 @@ bool TinyGLTF::LoadBinaryFromMemory(Model *model, std::string *err,
 
 bool TinyGLTF::LoadBinaryFromFile(Model *model, std::string *err,
                                   std::string *warn,
-                                  const std::string &filename,
+                                  const std::vector<unsigned char> &file,
+                                  const std::string& filename,
                                   unsigned int check_sections) {
-  std::stringstream ss;
-
-  if (fs.ReadWholeFile == nullptr) {
-    // Programmer error, assert() ?
-    ss << "Failed to read file: " << filename
-       << ": one or more FS callback not set" << std::endl;
-    if (err) {
-      (*err) = ss.str();
-    }
-    return false;
-  }
-
-  std::vector<unsigned char> data;
-  std::string fileerr;
-  bool fileread = fs.ReadWholeFile(&data, &fileerr, filename, fs.user_data);
-  if (!fileread) {
-    ss << "Failed to read file: " << filename << ": " << fileerr << std::endl;
-    if (err) {
-      (*err) = ss.str();
-    }
-    return false;
-  }
 
   std::string basedir = GetBaseDir(filename);
 
-  bool ret = LoadBinaryFromMemory(model, err, warn, &data.at(0),
-                                  static_cast<unsigned int>(data.size()),
+  bool ret = LoadBinaryFromMemory(model, err, warn, &file.at(0),
+                                  static_cast<unsigned int>(file.size()),
                                   basedir, check_sections);
 
   return ret;
