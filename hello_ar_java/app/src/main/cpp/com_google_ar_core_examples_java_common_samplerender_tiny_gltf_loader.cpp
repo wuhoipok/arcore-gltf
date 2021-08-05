@@ -146,7 +146,7 @@ void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, mesh
     }
 }
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+static size_t writeCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
@@ -161,22 +161,23 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     std::string err;
     std::string warn;
 
-//    CURL *curl;
-//    CURLcode res;
-//    std::string readBuffer;
-//
-//    curl = curl_easy_init();
-//
-//    if (curl)
-//    {
-//        curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/jayw0/arcore-gltf/blob/main/hello_ar_java/app/src/main/assets/models/Box.glb");
-//        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-//        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-//        res = curl_easy_perform(curl);
-//        curl_easy_cleanup(curl);
-//
-//        std::cout << readBuffer << std::endl;
-//    }
+    CURL *curl;
+    CURLcode res;
+    std::string readBuffer;
+
+    curl = curl_easy_init();
+
+    if (curl)
+    {
+        curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/Box.glb");
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, false);
+        res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+
+        std::cout << readBuffer << std::endl;
+    }
 
     tinygltf::asset_manager = AAssetManager_fromJava(env, assetManager);
 
