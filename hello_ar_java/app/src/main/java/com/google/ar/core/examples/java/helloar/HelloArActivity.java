@@ -81,6 +81,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import glm_.vec2.Vec2;
+import glm_.vec3.Vec3;
+import glm_.mat4x4.Mat4;
+import glm_.glm;
+
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
  * ARCore API. The application will display any detected planes and will allow the user to tap on a
