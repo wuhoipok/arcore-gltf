@@ -49,6 +49,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.4.0'
     implementation group: 'org.bytedeco', name: 'javacpp', version: '1.5.5'
 
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.5.20"
+
     implementation platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
 
     implementation "org.lwjgl:lwjgl"

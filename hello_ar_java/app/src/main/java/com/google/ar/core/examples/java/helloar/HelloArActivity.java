@@ -85,6 +85,7 @@ import glm_.vec2.Vec2;
 import glm_.vec3.Vec3;
 import glm_.mat4x4.Mat4;
 import glm_.glm;
+import glm_.ext.ext_matrixTransform;
 
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
@@ -167,12 +168,11 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
   private SpecularCubemapFilter cubemapFilter;
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
-  private final float[] modelMatrix = new float[16];
-  private final float[] rotationMatrix = new float[16];
-  private final float[] viewMatrix = new float[16];
+  private final Mat4 modelMatrix = new Mat4(1.0f);
+  private final Mat4 viewMatrix = glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 0.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f));
   private final float[] projectionMatrix = new float[16];
-  private final float[] modelViewMatrix = new float[16]; // view x model
-  private final float[] modelViewProjectionMatrix = new float[16]; // projection x view x model
+  private final float[]  modelViewMatrix = new float[16];; // view x model
+  private final float[] modelViewProjectionMatrix = new float[16];  // projection x view x model
   private final float[] sphericalHarmonicsCoefficients = new float[9 * 3];
   private final float[] viewInverseMatrix = new float[16];
   private final float[] worldLightDirection = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -413,6 +413,10 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
       virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/human.glb");
+
+      modelMatrix.translate(0.0f, -0.5f, -2.0f, modelMatrix);
+      // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
+
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
@@ -542,9 +546,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // -- Draw non-occluded virtual objects (planes, point cloud)
 
-    // Get projection matrix.
-    camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
-
     // Visualize tracked points.
     // Use try-with-resources to automatically release the point cloud.
 //    try (PointCloud pointCloud = frame.acquirePointCloud()) {
@@ -572,60 +573,13 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
 
-    modelMatrix[0] = 1.0f;
-    modelMatrix[1] = 0.0f;
-    modelMatrix[2] = 0.0f;
-    modelMatrix[3] = 0.0f;
-    modelMatrix[4] = 0.0f;
-    modelMatrix[5] = 1.0f;
-    modelMatrix[6] = 0.0f;
-    modelMatrix[7] = 0.0f;
-    modelMatrix[8] = 0.0f;
-    modelMatrix[9] = 0.0f;
-    modelMatrix[10] = 1.0f;
-    modelMatrix[11] = 0.0f;
-    modelMatrix[12] = 0.0f;
-    modelMatrix[13] = -0.45f;
-    modelMatrix[14] = -5.0f;
-    modelMatrix[15] = 1.0f;
+    // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(0.0f, 0.0f, 1.0f), modelMatrix);
 
-    rotationMatrix[0] = (float) Math.cos(5.0f * System.nanoTime() / 1000000000);
-    rotationMatrix[1] = 0.0f;
-    rotationMatrix[2] = (float) -Math.sin(5.0f * System.nanoTime() / 1000000000);
-    rotationMatrix[3] = 0.0f;
-    rotationMatrix[4] = 0.0f;
-    rotationMatrix[5] = 1.0f;
-    rotationMatrix[6] = 0.0f;
-    rotationMatrix[7] = 0.0f;
-    rotationMatrix[8] = (float) Math.sin(5.0f * System.nanoTime() / 1000000000);
-    rotationMatrix[9] = 0.0f;
-    rotationMatrix[10] = (float) Math.cos(5.0f * System.nanoTime() / 1000000000);
-    rotationMatrix[11] = 0.0f;
-    rotationMatrix[12] = 0.0f;
-    rotationMatrix[13] = 0.0f;
-    rotationMatrix[14] = 0.0f;
-    rotationMatrix[15] = 1.0f;
-
-    viewMatrix[0] = 1.0f;
-    viewMatrix[1] = 0.0f;
-    viewMatrix[2] = 0.0f;
-    viewMatrix[3] = 0.0f;
-    viewMatrix[4] = 0.0f;
-    viewMatrix[5] = 1.0f;
-    viewMatrix[6] = 0.0f;
-    viewMatrix[7] = 0.0f;
-    viewMatrix[8] = 0.0f;
-    viewMatrix[9] = 0.0f;
-    viewMatrix[10] = 1.0f;
-    viewMatrix[11] = 0.0f;
-    viewMatrix[12] = 0.0f;
-    viewMatrix[13] = 0.0f;
-    viewMatrix[14] = 0.0f;
-    viewMatrix[15] = 1.0f;
+    // Get projection matrix.
+    camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
 
     // Calculate model/view/projection matrices
-    Matrix.multiplyMM(modelMatrix, 0, modelMatrix, 0, rotationMatrix, 0);
-    Matrix.multiplyMM(modelViewMatrix, 0, modelMatrix, 0, viewMatrix, 0);
+    Matrix.multiplyMM(modelViewMatrix, 0, modelMatrix.toFloatArray(),0, viewMatrix.toFloatArray(), 0);
     Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
 
     // Update shader properties and draw
