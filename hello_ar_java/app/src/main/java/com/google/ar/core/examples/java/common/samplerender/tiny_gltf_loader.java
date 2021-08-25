@@ -52,5 +52,5 @@ public class tiny_gltf_loader
         return floatBuffer;
     }
 
-    public native void loadBinaryFromFile(String filename, AssetManager assetManager);
+    public native void loadBinaryFromFile(String filename);
 }

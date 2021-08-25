@@ -412,10 +412,10 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGltfAsset(render, "models/human.glb");
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb");
 
-      modelMatrix.translate(0.0f, -0.5f, -2.0f, modelMatrix);
-      // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
+      modelMatrix.translate(0.0f, -0.4f, -1.4f, modelMatrix);
+      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
 
       virtualObjectShader =
           Shader.createFromAssets(
@@ -573,8 +573,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
 
-    // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(0.0f, 0.0f, 1.0f), modelMatrix);
-
     // Get projection matrix.
     camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
 
@@ -585,6 +583,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Update shader properties and draw
     // virtualObjectShader.setMat4("u_ModelView", modelViewMatrix);
     virtualObjectShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
+    // virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
+    // virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix);
     render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
 
     // Compose the virtual scene with the background.

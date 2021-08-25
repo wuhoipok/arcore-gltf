@@ -109,34 +109,6 @@ void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, mesh
                     continue;
                 }
             }
-
-//            for (const auto& targets : primitive.targets)
-//            {
-//                for (const auto& target : targets)
-//                {
-//                    const tinygltf::Accessor &accessor = model.accessors[target.second];
-//                    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
-//                    const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
-//
-//                    float* data = (float*) (buffer.data.data() + bufferView.byteOffset);
-//                    std::vector<float> extractedData { data, data + bufferView.byteLength / sizeof(float) };
-//
-//                    if (target.first.compare("POSITION") == 0)
-//                    {
-//                        object.vertices.insert(std::end(object.vertices), std::begin(extractedData),
-//                                               std::end(extractedData));
-//                    }
-//                    else if (target.first.compare("NORMAL") == 0)
-//                    {
-//                        object.normals.insert(std::end(object.normals), std::begin(extractedData),
-//                                              std::end(extractedData));
-//                    }
-//                    else
-//                    {
-//                        continue;
-//                    }
-//                }
-//            }
         }
     }
 
@@ -153,8 +125,10 @@ static size_t writeCallback(void *contents, size_t size, size_t nmemb, void *use
 }
 
 JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender_tiny_1gltf_1loader_loadBinaryFromFile
-(JNIEnv* env, jobject obj, jstring filename, jobject assetManager)
+(JNIEnv* env, jobject obj, jstring filename)
 {
+    const char* nativeFilename = env->GetStringUTFChars(filename, 0);
+
     // load the model
     Model model{};
     TinyGLTF loader{};
@@ -177,8 +151,10 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
         curl_easy_cleanup(curl);
     }
 
+    env->ReleaseStringUTFChars(filename, nativeFilename);
+
     std::vector<unsigned char> file { readBuffer.begin(), readBuffer.end() };
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file, "human/glb"); // for binary glTF(.glb)
+    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file, "human/glb");
 
     if (!warn.empty())
     {

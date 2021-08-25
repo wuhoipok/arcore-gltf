@@ -13,7 +13,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender_tiny_1gltf_1loader_loadBinaryFromFile
-  (JNIEnv *, jobject, jstring, jobject);
+  (JNIEnv *, jobject, jstring);
 
 #ifdef __cplusplus
 }

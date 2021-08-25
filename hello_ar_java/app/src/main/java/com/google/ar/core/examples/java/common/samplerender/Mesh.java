@@ -166,26 +166,22 @@ public class Mesh implements Closeable {
 
     AssetManager assetManager = render.getAssets();
 
-    loader.loadBinaryFromFile(assetFileName, assetManager);
+    loader.loadBinaryFromFile(assetFileName);
 
-    try (InputStream ignored = render.getAssets().open(assetFileName)) {
+    // Obtain the data from the OBJ, as direct buffers:
+    IntBuffer vertexIndicesGltf = loader.getIndices();
+    FloatBuffer localCoordinatesGltf = loader.getVertices();
+    FloatBuffer textureCoordinatesGltf = loader.getTexcoords();
+    FloatBuffer normalsGltf = loader.getNormals();
 
-      // Obtain the data from the OBJ, as direct buffers:
-      IntBuffer vertexIndicesGltf = loader.getIndices();
-      FloatBuffer localCoordinatesGltf = loader.getVertices();
-      FloatBuffer textureCoordinatesGltf = loader.getTexcoords();
-      FloatBuffer normalsGltf = loader.getNormals();
+    VertexBuffer[] vertexBuffers = {
+            new VertexBuffer(render, 3, localCoordinatesGltf),
+            new VertexBuffer(render, 2, textureCoordinatesGltf),
+            new VertexBuffer(render, 3, normalsGltf),
+    };
 
-      VertexBuffer[] vertexBuffers = {
-              new VertexBuffer(render, 3, localCoordinatesGltf),
-              new VertexBuffer(render, 2, textureCoordinatesGltf),
-              new VertexBuffer(render, 3, normalsGltf),
-      };
-
-      IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndicesGltf);
-
-      return new Mesh(render, Mesh.PrimitiveMode.TRIANGLES, indexBuffer, vertexBuffers);
-    }
+    IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndicesGltf);
+    return new Mesh(render, Mesh.PrimitiveMode.TRIANGLES, indexBuffer, vertexBuffers);
   }
 
   @Override
