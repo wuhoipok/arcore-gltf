@@ -167,11 +167,13 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
   private Texture dfgTexture;
   private SpecularCubemapFilter cubemapFilter;
 
+  private final tiny_gltf_loader loader = new tiny_gltf_loader();
+
   // Temporary matrix allocated here to reduce number of allocations for each frame.
   private final Mat4 modelMatrix = new Mat4(1.0f);
   private final Mat4 viewMatrix = glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 0.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f));
   private final float[] projectionMatrix = new float[16];
-  private final float[]  modelViewMatrix = new float[16];; // view x model
+  private final float[] modelViewMatrix = new float[16];; // view x model
   private final float[] modelViewProjectionMatrix = new float[16];  // projection x view x model
   private final float[] sphericalHarmonicsCoefficients = new float[9 * 3];
   private final float[] viewInverseMatrix = new float[16];
@@ -412,10 +414,10 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb");
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/rehab2.glb", loader);
 
-      modelMatrix.translate(0.0f, -0.4f, -1.4f, modelMatrix);
-      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
+//      modelMatrix.translate(0.0f, -0.4f, -2.4f, modelMatrix);
+//      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
 
       virtualObjectShader =
           Shader.createFromAssets(
@@ -572,6 +574,9 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
+
+    // modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
+    // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(loader.getRotation()[0], loader.getRotation()[1], loader.getRotation()[2]), modelMatrix);
 
     // Get projection matrix.
     camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);

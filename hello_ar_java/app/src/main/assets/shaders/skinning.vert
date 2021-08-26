@@ -20,15 +20,20 @@ attribute vec4 a_weight;
 
 uniform mat4 u_modelViewMatrix;
 uniform mat4 u_projectionMatrix;
-uniform mat4 u_jointMatrix[];
+uniform mat4 u_jointMatrix[25];
 uniform float u_PointSize;
 
 layout(location = 0) in vec4 a_Position;
 
 void main() {
-    mat4 skinMatrix = a_weight * u_jointMatrix[a_joint];
+    mat4 skinMatrix =
+        a_weight.x * u_jointMatrix[int(a_joint.x)] +
+        a_weight.y * u_jointMatrix[int(a_joint.y)] +
+        a_weight.z * u_jointMatrix[int(a_joint.z)] +
+        a_weight.w * u_jointMatrix[int(a_joint.w)];
 
     vec4 pos = u_modelViewMatrix * skinMatrix * vec4(a_Position, 1.0);
     gl_Position = u_projectionMatrix * pos;
+
     gl_PointSize = u_PointSize;
 }

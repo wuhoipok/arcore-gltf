@@ -25,12 +25,22 @@
 
 using namespace tinygltf;
 
-struct meshData
+// single mesh struct
+struct aMesh
 {
     std::vector<int> indices;
     std::vector<float> vertices;
     std::vector<float> normals;
     std::vector<float> texcoords;
+    std::vector<int> joints;
+    std::vector<float> weights;
+
+    std::vector<float> globalScale;
+    std::vector<float> globalTranslation;
+    std::vector<float> globalRotation;
+
+    void extractGlobalTransformation(const tinygltf::Node& rootNode);
+    void extractData(const tinygltf::Node& node, const tinygltf::Model& model);
 };
 
 template <typename T>
@@ -61,52 +71,61 @@ void copyToJavaClass<float>(JNIEnv* env, jobject obj, const std::vector<float>& 
     env->SetObjectField(obj, fieldId, outFloatArray);
 }
 
-void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, meshData& object)
+void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)
 {
-    const tinygltf::Mesh& mesh = model.meshes[node.mesh];
+    globalScale.assign(rootNode.scale.begin(), rootNode.scale.end());
+    globalTranslation.assign(rootNode.translation.begin(), rootNode.translation.end());
+    globalRotation.assign(rootNode.rotation.begin(), rootNode.rotation.end());
+}
 
-    if (mesh.primitives.size() > 0)
+void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model)
+{
+    if (node.mesh >= 0)
     {
-        for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); primitiveIndex++)
-        {
+        const tinygltf::Mesh &mesh = model.meshes[node.mesh];
+
+        for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); primitiveIndex++) {
             const tinygltf::Primitive &primitive = mesh.primitives[primitiveIndex];
             const tinygltf::Accessor &indexAccessor = model.accessors[primitive.indices];
             const tinygltf::BufferView &indexBufferView = model.bufferViews[indexAccessor.bufferView];
             const tinygltf::Buffer &indexBuffer = model.buffers[indexBufferView.buffer];
 
-            unsigned short* data = (unsigned short*) (indexBuffer.data.data() + indexBufferView.byteOffset);
-            std::vector<unsigned short> indexData { data, data + indexBufferView.byteLength / sizeof(unsigned short) };
+            unsigned short *data = (unsigned short *) (indexBuffer.data.data() +
+                                                       indexBufferView.byteOffset);
+            std::vector<unsigned short> indexData{data, data + indexBufferView.byteLength /
+                                                               sizeof(unsigned short)};
 
-            object.indices.insert(std::end(object.indices), std::begin(indexData),
-                                  std::end(indexData));
+            indices.insert(std::end(indices), std::begin(indexData),
+                           std::end(indexData));
 
-            for (const auto &attrib : primitive.attributes)
-            {
+            for (const auto &attrib : primitive.attributes) {
                 const tinygltf::Accessor &accessor = model.accessors[attrib.second];
                 const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
                 const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
 
-                float* data = (float*) (buffer.data.data() + bufferView.byteOffset);
-                std::vector<float> extractedData { data, data + bufferView.byteLength / sizeof(float) };
+                float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
+                std::vector<float> extractedData{data,
+                                                 data + bufferView.byteLength / sizeof(float)};
 
-                if (attrib.first.compare("POSITION") == 0)
-                {
-                    object.vertices.insert(std::end(object.vertices), std::begin(extractedData),
-                                           std::end(extractedData));
-                }
-                else if (attrib.first.compare("NORMAL") == 0)
-                {
-                    object.normals.insert(std::end(object.normals), std::begin(extractedData),
-                                          std::end(extractedData));
-                }
-                else if (attrib.first.compare("TEXCOORD_0") == 0)
-                {
-                    object.texcoords.insert(std::end(object.texcoords), std::begin(extractedData),
-                                            std::end(extractedData));
-                }
-                else
-                {
-                    continue;
+                int *intData = (int *) (buffer.data.data() + bufferView.byteOffset);
+                std::vector<int> extractedIntData{intData,
+                                                  intData + bufferView.byteLength / sizeof(int)};
+
+                if (attrib.first.compare("POSITION") == 0) {
+                    vertices.insert(std::end(vertices), std::begin(extractedData),
+                                    std::end(extractedData));
+                } else if (attrib.first.compare("NORMAL") == 0) {
+                    normals.insert(std::end(normals), std::begin(extractedData),
+                                   std::end(extractedData));
+                } else if (attrib.first.compare("TEXCOORD_0") == 0) {
+                    texcoords.insert(std::end(texcoords), std::begin(extractedData),
+                                     std::end(extractedData));
+                } else if (attrib.first.compare("JOINTS_0") == 0) {
+                    joints.insert(std::end(joints), std::begin(extractedIntData),
+                                  std::end(extractedIntData));
+                } else if (attrib.first.compare("WEIGHTS_0") == 0) {
+                    weights.insert(std::end(weights), std::begin(extractedData),
+                                   std::end(extractedData));
                 }
             }
         }
@@ -114,7 +133,7 @@ void retrieveNode(const tinygltf::Node& node, const tinygltf::Model& model, mesh
 
     for (size_t childrenIndex = 0; childrenIndex < node.children.size(); childrenIndex++)
     {
-        retrieveNode(model.nodes[node.children[childrenIndex]], model, object);
+        extractData(model.nodes[node.children[childrenIndex]], model);
     }
 }
 
@@ -143,7 +162,7 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 
     if (curl)
     {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb");
+        curl_easy_setopt(curl, CURLOPT_URL, nativeFilename);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, false);
@@ -172,17 +191,20 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
         return;
     }
 
-    meshData object;
+    aMesh mesh;
 
     // parse the data
     const tinygltf::Scene& scene = model.scenes[model.defaultScene];
 
-    for (size_t nodeIndex = 0; nodeIndex < scene.nodes.size(); nodeIndex++)
-    {
-        const tinygltf::Node& node = model.nodes[scene.nodes[nodeIndex]];
+    const tinygltf::Node& rootNode = model.nodes[scene.nodes[0]];
+    mesh.extractGlobalTransformation(rootNode);
+    mesh.extractData(rootNode, model);
 
-        retrieveNode(node, model, object);
-    }
+//    for (size_t nodeIndex = 0; nodeIndex < scene.nodes.size(); nodeIndex++)
+//    {
+//        const tinygltf::Node& node = model.nodes[scene.nodes[nodeIndex]];
+//        object.retrieveNode(node, model);
+//    }
 
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
@@ -191,9 +213,21 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[F");
     jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[F");
     jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[F");
+    jfieldID jointField = env->GetFieldID(loaderClass, "joints", "[I");
+    jfieldID weightField = env->GetFieldID(loaderClass, "weights", "[F");
 
-    copyToJavaClass<int>(env, obj, object.indices, indexField);
-    copyToJavaClass<float>(env, obj, object.vertices, vertexField);
-    copyToJavaClass<float>(env, obj, object.normals, normalField);
-    copyToJavaClass<float>(env, obj, object.texcoords, texcoordField);
+    jfieldID scaleField = env->GetFieldID(loaderClass, "scale", "[F");
+    jfieldID translationField = env->GetFieldID(loaderClass, "translation", "[F");
+    jfieldID rotationField = env->GetFieldID(loaderClass, "rotation", "[F");
+
+    copyToJavaClass<int>(env, obj, mesh.indices, indexField);
+    copyToJavaClass<float>(env, obj, mesh.vertices, vertexField);
+    copyToJavaClass<float>(env, obj, mesh.normals, normalField);
+    copyToJavaClass<float>(env, obj, mesh.texcoords, texcoordField);
+    copyToJavaClass<int>(env, obj, mesh.joints, jointField);
+    copyToJavaClass<float>(env, obj, mesh.weights, weightField);
+
+    copyToJavaClass<float>(env, obj, mesh.globalScale, scaleField);
+    copyToJavaClass<float>(env, obj, mesh.globalTranslation, translationField);
+    copyToJavaClass<float>(env, obj, mesh.globalRotation, rotationField);
 }

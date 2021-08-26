@@ -160,9 +160,7 @@ public class Mesh implements Closeable {
     }
   }
 
-  public static Mesh createFromGltfAsset(SampleRender render, String assetFileName) throws IOException {
-
-    tiny_gltf_loader loader = new tiny_gltf_loader();
+  public static Mesh createFromGltfAsset(SampleRender render, String assetFileName, tiny_gltf_loader loader) throws IOException {
 
     AssetManager assetManager = render.getAssets();
 
