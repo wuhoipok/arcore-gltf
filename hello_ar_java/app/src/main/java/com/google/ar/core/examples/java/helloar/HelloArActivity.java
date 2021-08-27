@@ -414,10 +414,10 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              "models/pawn_roughness_metallic_ao.png",
 //              Texture.WrapMode.CLAMP_TO_EDGE,
 //              Texture.ColorFormat.LINEAR);
-      virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/rehab2.glb", loader);
+      virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb", loader);
 
-//      modelMatrix.translate(0.0f, -0.4f, -2.4f, modelMatrix);
-//      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
+      modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
+      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
 
       virtualObjectShader =
           Shader.createFromAssets(
@@ -574,9 +574,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
-
-    // modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
-    // modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(loader.getRotation()[0], loader.getRotation()[1], loader.getRotation()[2]), modelMatrix);
 
     // Get projection matrix.
     camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
