@@ -79,6 +79,7 @@ import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationExceptio
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import glm_.vec2.Vec2;
@@ -171,7 +172,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
   private final Mat4 modelMatrix = new Mat4(1.0f);
-  private final Mat4 viewMatrix = glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 0.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f));
+  private final Mat4 viewMatrix = glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 2.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f));
+  private final Mat4[] jointMatrices = new Mat4[25];
   private final float[] projectionMatrix = new float[16];
   private final float[] modelViewMatrix = new float[16];; // view x model
   private final float[] modelViewProjectionMatrix = new float[16];  // projection x view x model
@@ -418,6 +420,12 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
       modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
 
+      for (int i = 0; i < jointMatrices.length; i++) {
+        jointMatrices[i] = new Mat4(1.0f);
+
+        
+      }
+
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
@@ -565,6 +573,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //        session.getAllTrackables(Plane.class),
 //        camera.getDisplayOrientedPose(),
 //        projectionMatrix);
+
 
     // -- Draw occluded virtual objects
 

@@ -56,6 +56,8 @@ public class tiny_gltf_loader
     private float[] translation;
     private float[] rotation;
 
+    private float[] inverseBindMatrices;
+
     static
     {
         System.loadLibrary("tiny_gltf");

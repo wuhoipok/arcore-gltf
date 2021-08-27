@@ -39,6 +39,9 @@ struct aMesh
     std::vector<float> globalTranslation;
     std::vector<float> globalRotation;
 
+    std::vector<float> inverseBindMatrices;
+
+    void extractInverseBindMatrices(const tinygltf::Node& node, const tinygltf::Model& model);
     void extractGlobalTransformation(const tinygltf::Node& rootNode);
     void extractData(const tinygltf::Node& node, const tinygltf::Model& model);
 };
@@ -71,6 +74,23 @@ void copyToJavaClass<float>(JNIEnv* env, jobject obj, const std::vector<float>& 
     env->SetObjectField(obj, fieldId, outFloatArray);
 }
 
+void aMesh::extractInverseBindMatrices(const tinygltf::Node& node, const tinygltf::Model& model)
+{
+    if (!inverseBindMatrices.empty()) { return; }
+
+    const tinygltf::Skin& skin = model.skins[node.skin];
+    const tinygltf::Accessor& accessor = model.accessors[skin.inverseBindMatrices];
+    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+    const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
+
+    float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
+    std::vector<float> extractedData{data,
+                                     data + bufferView.byteLength / sizeof(float)};
+
+    inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
+                    std::end(extractedData));
+}
+
 void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)
 {
     globalScale.assign(rootNode.scale.begin(), rootNode.scale.end());
@@ -83,6 +103,10 @@ void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model
     if (node.mesh >= 0)
     {
         const tinygltf::Mesh &mesh = model.meshes[node.mesh];
+
+        if (node.skin >= 0) {
+            extractInverseBindMatrices(node, model);
+        }
 
         for (size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); primitiveIndex++) {
             const tinygltf::Primitive &primitive = mesh.primitives[primitiveIndex];
@@ -107,9 +131,9 @@ void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model
                 std::vector<float> extractedData{data,
                                                  data + bufferView.byteLength / sizeof(float)};
 
-                int *intData = (int *) (buffer.data.data() + bufferView.byteOffset);
-                std::vector<int> extractedIntData{intData,
-                                                  intData + bufferView.byteLength / sizeof(int)};
+                unsigned char *intData = (unsigned char *) (buffer.data.data() + bufferView.byteOffset);
+                std::vector<unsigned char> extractedIntData{intData,
+                                                             intData + bufferView.byteLength / sizeof(unsigned char)};
 
                 if (attrib.first.compare("POSITION") == 0) {
                     vertices.insert(std::end(vertices), std::begin(extractedData),
@@ -220,6 +244,8 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     jfieldID translationField = env->GetFieldID(loaderClass, "translation", "[F");
     jfieldID rotationField = env->GetFieldID(loaderClass, "rotation", "[F");
 
+    jfieldID inverseBindMatricesField = env->GetFieldID(loaderClass, "inverseBindMatrices", "[F");
+
     copyToJavaClass<int>(env, obj, mesh.indices, indexField);
     copyToJavaClass<float>(env, obj, mesh.vertices, vertexField);
     copyToJavaClass<float>(env, obj, mesh.normals, normalField);
@@ -230,4 +256,6 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     copyToJavaClass<float>(env, obj, mesh.globalScale, scaleField);
     copyToJavaClass<float>(env, obj, mesh.globalTranslation, translationField);
     copyToJavaClass<float>(env, obj, mesh.globalRotation, rotationField);
+
+    copyToJavaClass<float>(env, obj, mesh.inverseBindMatrices, inverseBindMatricesField);
 }
