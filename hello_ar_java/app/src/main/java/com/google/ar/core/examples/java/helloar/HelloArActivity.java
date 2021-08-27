@@ -417,7 +417,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb", loader);
 
       modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
-      modelMatrix.rotate((float)Math.toRadians(90.0f), new Vec3(1.0f, 0.0f, 0.0f), modelMatrix);
 
       virtualObjectShader =
           Shader.createFromAssets(
