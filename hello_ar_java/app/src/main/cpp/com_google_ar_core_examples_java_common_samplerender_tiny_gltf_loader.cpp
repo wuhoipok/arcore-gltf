@@ -91,12 +91,15 @@ void aMesh::extractInverseBindMatrices(const tinygltf::Node& node, const tinyglt
     const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
     const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
 
-    float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
-    std::vector<float> extractedData{data,
-                                     data + bufferView.byteLength / sizeof(float)};
+    for (auto jointIndex : skin.joints)
+    {
+        float *data = (float *) (buffer.data.data() + bufferView.byteOffset + jointIndex * sizeof(float) * 16);
+        std::vector<float> extractedData{data,
+                                         data + 16};
 
-    inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
-                    std::end(extractedData));
+        inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
+                                   std::end(extractedData));
+    }
 }
 
 void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)

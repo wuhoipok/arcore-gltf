@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-attribute vec4 a_joint;
-attribute vec4 a_weight;
-
 uniform mat4 u_modelViewMatrix;
 uniform mat4 u_projectionMatrix;
 uniform mat4 u_jointMatrix[25];
 uniform float u_PointSize;
 
 layout(location = 0) in vec4 a_Position;
+layout(location = 1) in vec4 a_joint;
+layout(location = 2) in vec4 a_weight;
 
 void main() {
     mat4 skinMatrix =
@@ -32,7 +31,7 @@ void main() {
         a_weight.z * u_jointMatrix[int(a_joint.z)] +
         a_weight.w * u_jointMatrix[int(a_joint.w)];
 
-    vec4 pos = u_modelViewMatrix * skinMatrix * vec4(a_Position, 1.0);
+    vec4 pos = u_modelViewMatrix * skinMatrix * vec4(a_Position.xyz, 1.0);
     gl_Position = u_projectionMatrix * pos;
 
     gl_PointSize = u_PointSize;

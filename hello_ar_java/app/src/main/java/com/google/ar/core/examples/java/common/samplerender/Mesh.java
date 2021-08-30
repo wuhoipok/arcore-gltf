@@ -174,8 +174,8 @@ public class Mesh implements Closeable {
 
     VertexBuffer[] vertexBuffers = {
             new VertexBuffer(render, 3, localCoordinatesGltf),
-            new VertexBuffer(render, 2, textureCoordinatesGltf),
-            new VertexBuffer(render, 3, normalsGltf),
+            new VertexBuffer(render, 4, loader.getJoints()),
+            new VertexBuffer(render, 4, loader.getWeights()),
     };
 
     IndexBuffer indexBuffer = new IndexBuffer(render, vertexIndicesGltf);

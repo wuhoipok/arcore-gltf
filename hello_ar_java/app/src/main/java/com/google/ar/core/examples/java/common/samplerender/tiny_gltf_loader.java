@@ -39,8 +39,18 @@ public class tiny_gltf_loader
         return floatBuffer;
     }
 
-    public float[] getJoints() { return joints; }
-    public float[] getWeights() { return weights; }
+    public FloatBuffer getJoints()
+    {
+        FloatBuffer floatBuffer = createDirectFloatBuffer(4 * joints.length);
+        floatBuffer.put(joints).position(0);
+        return floatBuffer;
+    }
+    public FloatBuffer getWeights()
+    {
+        FloatBuffer floatBuffer = createDirectFloatBuffer(4 * weights.length);
+        floatBuffer.put(weights).position(0);
+        return floatBuffer;
+    }
 
     public float[] getScale() { return scale; }
     public float[] getTranslation() { return translation; }
