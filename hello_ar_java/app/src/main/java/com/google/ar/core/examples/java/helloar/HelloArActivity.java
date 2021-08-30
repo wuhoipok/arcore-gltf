@@ -421,19 +421,22 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
       modelMatrix.translateAssign(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2]);
 
+      // int[] jointIndexes = new int[] { 24, 23, 3, 2, 1, 0, 7, 6, 5, 4, 22, 21, 20, 9, 8, 14, 13, 12, 11, 10, 19, 18, 17, 16, 15 };
+
       for (int i = 0; i < jointMatrices.length; i++)
       {
         jointMatrices[i] = new Mat4(modelMatrix.inverse());
+//        jointMatrices[i] = new Mat4(loader.getInverseBindMatrices(i));
 
-//        Mat4 jointTransformation = new Mat4(1.0f);
-//        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
-//
-//        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
-//        Mat4 jointRotation = new Mat4(quaternion.toMat4());
-//
-//        jointTransformation.timesAssign(jointRotation);
-//
-//        jointMatrices[i].timesAssign(jointTransformation);
+        Mat4 jointTransformation = new Mat4(1.0f);
+        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
+
+        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
+        Mat4 jointRotation = new Mat4(quaternion.toMat4());
+
+        jointTransformation.timesAssign(jointRotation);
+
+        jointMatrices[i].timesAssign(jointTransformation);
         jointMatrices[i].timesAssign(new Mat4(loader.getInverseBindMatrices(i)));
       }
 
