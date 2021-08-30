@@ -28,22 +28,30 @@ using namespace tinygltf;
 // single mesh struct
 struct aMesh
 {
+public:
+
+    void extractInverseBindMatrices(const tinygltf::Node& node, const tinygltf::Model& model);
+    void extractGlobalTransformation(const tinygltf::Node& rootNode);
+    void extractJointTransformation(const tinygltf::Skin& skin, const tinygltf::Model& model);
+    void extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf::Model& model);
+    void copyToJava(JNIEnv* env, jobject obj);
+
+private:
+
     std::vector<int> indices;
     std::vector<float> vertices;
     std::vector<float> normals;
     std::vector<float> texcoords;
-    std::vector<int> joints;
+    std::vector<float> joints;
     std::vector<float> weights;
 
-    std::vector<float> globalScale;
-    std::vector<float> globalTranslation;
-    std::vector<float> globalRotation;
+    std::vector<float> scale;
+    std::vector<float> translation;
+    std::vector<float> rotation;
 
+    std::vector<float> jointTranslation;
+    std::vector<float> jointRotation;
     std::vector<float> inverseBindMatrices;
-
-    void extractInverseBindMatrices(const tinygltf::Node& node, const tinygltf::Model& model);
-    void extractGlobalTransformation(const tinygltf::Node& rootNode);
-    void extractData(const tinygltf::Node& node, const tinygltf::Model& model);
 };
 
 template <typename T>
@@ -93,12 +101,23 @@ void aMesh::extractInverseBindMatrices(const tinygltf::Node& node, const tinyglt
 
 void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)
 {
-    globalScale.assign(rootNode.scale.begin(), rootNode.scale.end());
-    globalTranslation.assign(rootNode.translation.begin(), rootNode.translation.end());
-    globalRotation.assign(rootNode.rotation.begin(), rootNode.rotation.end());
+    scale.assign(rootNode.scale.begin(), rootNode.scale.end());
+    translation.assign(rootNode.translation.begin(), rootNode.translation.end());
+    rotation.assign(rootNode.rotation.begin(), rootNode.rotation.end());
 }
 
-void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model)
+void aMesh::extractJointTransformation(const tinygltf::Skin &skin, const tinygltf::Model& model)
+{
+    for (auto jointIndex : skin.joints)
+    {
+        const tinygltf::Node& jointNode = model.nodes[jointIndex];
+
+        jointTranslation.insert(jointTranslation.end(), jointNode.translation.begin(), jointNode.translation.end());
+        jointRotation.insert(jointRotation.end(), jointNode.rotation.begin(), jointNode.rotation.end());
+    }
+}
+
+void aMesh::extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf::Model& model)
 {
     if (node.mesh >= 0)
     {
@@ -133,7 +152,7 @@ void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model
 
                 unsigned char *intData = (unsigned char *) (buffer.data.data() + bufferView.byteOffset);
                 std::vector<unsigned char> extractedIntData{intData,
-                                                             intData + bufferView.byteLength / sizeof(unsigned char)};
+                                                            intData + bufferView.byteLength / sizeof(unsigned char)};
 
                 if (attrib.first.compare("POSITION") == 0) {
                     vertices.insert(std::end(vertices), std::begin(extractedData),
@@ -157,7 +176,7 @@ void aMesh::extractData(const tinygltf::Node& node, const tinygltf::Model& model
 
     for (size_t childrenIndex = 0; childrenIndex < node.children.size(); childrenIndex++)
     {
-        extractData(model.nodes[node.children[childrenIndex]], model);
+        extractMeshPrimitiveData(model.nodes[node.children[childrenIndex]], model);
     }
 }
 
@@ -222,7 +241,8 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 
     const tinygltf::Node& rootNode = model.nodes[scene.nodes[0]];
     mesh.extractGlobalTransformation(rootNode);
-    mesh.extractData(rootNode, model);
+    mesh.extractJointTransformation(model.skins[0], model);
+    mesh.extractMeshPrimitiveData(rootNode, model);
 
 //    for (size_t nodeIndex = 0; nodeIndex < scene.nodes.size(); nodeIndex++)
 //    {
@@ -230,32 +250,41 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 //        object.retrieveNode(node, model);
 //    }
 
+    mesh.copyToJava(env, obj);
+}
+
+void aMesh::copyToJava(JNIEnv* env, jobject obj)
+{
     // Create the object of the class UserData
     jclass loaderClass = env->GetObjectClass(obj);
 
-    jfieldID indexField = env->GetFieldID(loaderClass, "indices", "[I");
-    jfieldID vertexField = env->GetFieldID(loaderClass, "vertices", "[F");
-    jfieldID normalField = env->GetFieldID(loaderClass, "normals", "[F");
-    jfieldID texcoordField = env->GetFieldID(loaderClass, "texcoords", "[F");
-    jfieldID jointField = env->GetFieldID(loaderClass, "joints", "[I");
-    jfieldID weightField = env->GetFieldID(loaderClass, "weights", "[F");
+    jfieldID indicesField = env->GetFieldID(loaderClass, "indices", "[I");
+    jfieldID verticesField = env->GetFieldID(loaderClass, "vertices", "[F");
+    jfieldID normalsField = env->GetFieldID(loaderClass, "normals", "[F");
+    jfieldID texcoordsField = env->GetFieldID(loaderClass, "texcoords", "[F");
+    jfieldID jointsField = env->GetFieldID(loaderClass, "joints", "[F");
+    jfieldID weightsField = env->GetFieldID(loaderClass, "weights", "[F");
 
     jfieldID scaleField = env->GetFieldID(loaderClass, "scale", "[F");
     jfieldID translationField = env->GetFieldID(loaderClass, "translation", "[F");
     jfieldID rotationField = env->GetFieldID(loaderClass, "rotation", "[F");
 
+    jfieldID jointTranslationField = env->GetFieldID(loaderClass, "jointTranslation", "[F");
+    jfieldID jointRotationField = env->GetFieldID(loaderClass, "jointRotation", "[F");
     jfieldID inverseBindMatricesField = env->GetFieldID(loaderClass, "inverseBindMatrices", "[F");
 
-    copyToJavaClass<int>(env, obj, mesh.indices, indexField);
-    copyToJavaClass<float>(env, obj, mesh.vertices, vertexField);
-    copyToJavaClass<float>(env, obj, mesh.normals, normalField);
-    copyToJavaClass<float>(env, obj, mesh.texcoords, texcoordField);
-    copyToJavaClass<int>(env, obj, mesh.joints, jointField);
-    copyToJavaClass<float>(env, obj, mesh.weights, weightField);
+    copyToJavaClass<int>(env, obj, indices, indicesField);
+    copyToJavaClass<float>(env, obj, vertices, verticesField);
+    copyToJavaClass<float>(env, obj, normals, normalsField);
+    copyToJavaClass<float>(env, obj, texcoords, texcoordsField);
+    copyToJavaClass<float>(env, obj, joints, jointsField);
+    copyToJavaClass<float>(env, obj, weights, weightsField);
 
-    copyToJavaClass<float>(env, obj, mesh.globalScale, scaleField);
-    copyToJavaClass<float>(env, obj, mesh.globalTranslation, translationField);
-    copyToJavaClass<float>(env, obj, mesh.globalRotation, rotationField);
+    copyToJavaClass<float>(env, obj, scale, scaleField);
+    copyToJavaClass<float>(env, obj, translation, translationField);
+    copyToJavaClass<float>(env, obj, rotation, rotationField);
 
-    copyToJavaClass<float>(env, obj, mesh.inverseBindMatrices, inverseBindMatricesField);
+    copyToJavaClass<float>(env, obj, jointTranslation, jointTranslationField);
+    copyToJavaClass<float>(env, obj, jointRotation, jointRotationField);
+    copyToJavaClass<float>(env, obj, inverseBindMatrices, inverseBindMatricesField);
 }

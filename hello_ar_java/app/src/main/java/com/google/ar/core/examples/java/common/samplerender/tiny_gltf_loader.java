@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Arrays;
 
 public class tiny_gltf_loader
 {
@@ -38,24 +39,30 @@ public class tiny_gltf_loader
         return floatBuffer;
     }
 
-    public int[] getJoints() { return joints; }
+    public float[] getJoints() { return joints; }
     public float[] getWeights() { return weights; }
 
     public float[] getScale() { return scale; }
     public float[] getTranslation() { return translation; }
     public float[] getRotation() { return rotation; }
 
+    public float[] getJointTranslation(int index) { return Arrays.copyOfRange(jointTranslation, 3 * index, 3 * (index + 1)); }
+    public float[] getJointRotation(int index) { return Arrays.copyOfRange(jointRotation, 4 * index, 4 * (index + 1)); }
+    public float[] getInverseBindMatrices(int index) { return Arrays.copyOfRange(inverseBindMatrices, 16 * index, 16 * (index + 1)); }
+
     private int[] indices;
     private float[] vertices;
     private float[] normals;
     private float[] texcoords;
-    private int[] joints;
+    private float[] joints;
     private float[] weights;
 
     private float[] scale;
     private float[] translation;
     private float[] rotation;
 
+    private float[] jointTranslation;
+    private float[] jointRotation;
     private float[] inverseBindMatrices;
 
     static

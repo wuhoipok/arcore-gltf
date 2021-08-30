@@ -81,12 +81,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import glm_.vec2.Vec2;
 import glm_.vec3.Vec3;
 import glm_.mat4x4.Mat4;
 import glm_.glm;
-import glm_.ext.ext_matrixTransform;
+import glm_.quat.Quat;
 
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
@@ -172,10 +173,10 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
   private final Mat4 modelMatrix = new Mat4(1.0f);
-  private final Mat4 viewMatrix = glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 2.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f));
+  private final Mat4 viewMatrix = new Mat4(glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 2.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f)));
   private final Mat4[] jointMatrices = new Mat4[25];
   private final float[] projectionMatrix = new float[16];
-  private final float[] modelViewMatrix = new float[16];; // view x model
+  private final float[] modelViewMatrix = new float[16]; // view x model
   private final float[] modelViewProjectionMatrix = new float[16];  // projection x view x model
   private final float[] sphericalHarmonicsCoefficients = new float[9 * 3];
   private final float[] viewInverseMatrix = new float[16];
@@ -418,24 +419,45 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 //              Texture.ColorFormat.LINEAR);
       virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb", loader);
 
-      modelMatrix.translate(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2], modelMatrix);
+      modelMatrix.translateAssign(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2]);
 
-      for (int i = 0; i < jointMatrices.length; i++) {
-        jointMatrices[i] = new Mat4(1.0f);
+      for (int i = 0; i < jointMatrices.length; i++)
+      {
+        jointMatrices[i] = new Mat4(modelMatrix.inverse());
 
-        
+        Mat4 jointTransformation = new Mat4(1.0f);
+        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
+
+        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
+        Mat4 jointRotation = new Mat4(quaternion.toMat4());
+
+        jointTransformation.timesAssign(jointRotation);
+
+        jointMatrices[i].timesAssign(jointTransformation);
+        jointMatrices[i].timesAssign(new Mat4(loader.getInverseBindMatrices(i)));
+      }
+
+      float[] jointMatricesFloatArray = new float[jointMatrices.length * 16];
+
+      for (int i = 0; i < jointMatrices.length; i++)
+      {
+        for (int j = 0; j < 16; j++)
+        {
+          jointMatricesFloatArray[i * 16 + j] = jointMatrices[i].toFloatArray()[j];
+        }
       }
 
       virtualObjectShader =
           Shader.createFromAssets(
                   render,
-                  "shaders/point_cloud.vert",
+                  "shaders/skinning.vert",
                   "shaders/point_cloud.frag",
                   null
                   )
                   .setVec4(
                           "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 0.5f})
-                  .setFloat("u_PointSize", 5.0f);
+                  .setFloat("u_PointSize", 5.0f)
+                  .setMat4Array("u_jointMatrix", jointMatricesFloatArray);
 //              .setTexture("u_AlbedoTexture", virtualObjectAlbedoTexture)
 //              .setTexture("u_RoughnessMetallicAmbientOcclusionTexture", virtualObjectPbrTexture)
 //              .setTexture("u_Cubemap", cubemapFilter.getFilteredCubemapTexture())
