@@ -425,19 +425,20 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
       for (int i = 0; i < jointMatrices.length; i++)
       {
+        // jointMatrices[i] = new Mat4(modelMatrix.inverse());
+        // jointMatrices[i] = new Mat4(loader.getInverseBindMatrices(i));
+//
+//        Mat4 jointTransformation = new Mat4(1.0f);
+//        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
+//
+//        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
+//        Mat4 jointRotation = new Mat4(quaternion.toMat4());
+//
+//        // jointTransformation.timesAssign(jointRotation);
+//
+//        jointMatrices[i].timesAssign(jointTransformation);
+        // jointMatrices[i].timesAssign(new Mat4(loader.getInverseBindMatrices(i)));
         jointMatrices[i] = new Mat4(modelMatrix.inverse());
-//        jointMatrices[i] = new Mat4(loader.getInverseBindMatrices(i));
-
-        Mat4 jointTransformation = new Mat4(1.0f);
-        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
-
-        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
-        Mat4 jointRotation = new Mat4(quaternion.toMat4());
-
-        jointTransformation.timesAssign(jointRotation);
-
-        jointMatrices[i].timesAssign(jointTransformation);
-        jointMatrices[i].timesAssign(new Mat4(loader.getInverseBindMatrices(i)));
       }
 
       float[] jointMatricesFloatArray = new float[jointMatrices.length * 16];
@@ -617,9 +618,9 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Update shader properties and draw
     // virtualObjectShader.setMat4("u_ModelView", modelViewMatrix);
+    // virtualObjectShader.setMat4("u_viewMatrix", viewMatrix.toFloatArray());
     virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
     virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix);
-    // virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
     render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
 
     // Compose the virtual scene with the background.

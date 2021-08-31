@@ -91,15 +91,11 @@ void aMesh::extractInverseBindMatrices(const tinygltf::Node& node, const tinyglt
     const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
     const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
 
-    for (auto jointIndex : skin.joints)
-    {
-        float *data = (float *) (buffer.data.data() + bufferView.byteOffset + jointIndex * sizeof(float) * 16);
-        std::vector<float> extractedData{data,
-                                         data + 16};
+    float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
+    std::vector<float> extractedData{data,data + bufferView.byteLength / sizeof(float)};
 
-        inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
+    inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
                                    std::end(extractedData));
-    }
 }
 
 void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)
@@ -115,8 +111,28 @@ void aMesh::extractJointTransformation(const tinygltf::Skin &skin, const tinyglt
     {
         const tinygltf::Node& jointNode = model.nodes[jointIndex];
 
-        jointTranslation.insert(jointTranslation.end(), jointNode.translation.begin(), jointNode.translation.end());
-        jointRotation.insert(jointRotation.end(), jointNode.rotation.begin(), jointNode.rotation.end());
+        if (jointNode.translation.empty())
+        {
+            jointTranslation.push_back(0.0f);
+            jointTranslation.push_back(0.0f);
+            jointTranslation.push_back(0.0f);
+        }
+        else
+        {
+            jointTranslation.insert(jointTranslation.end(), jointNode.translation.begin(), jointNode.translation.end());
+        }
+
+        if (jointNode.rotation.empty())
+        {
+            jointRotation.push_back(0.0f);
+            jointRotation.push_back(0.0f);
+            jointRotation.push_back(0.0f);
+            jointRotation.push_back(0.0f);
+        }
+        else
+        {
+            jointRotation.insert(jointRotation.end(), jointNode.rotation.begin(), jointNode.rotation.end());
+        }
     }
 }
 
