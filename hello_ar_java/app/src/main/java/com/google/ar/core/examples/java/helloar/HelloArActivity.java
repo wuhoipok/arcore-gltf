@@ -172,12 +172,13 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
   private final tiny_gltf_loader loader = new tiny_gltf_loader();
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
-  private final Mat4 modelMatrix = new Mat4(1.0f);
-  private final Mat4 viewMatrix = new Mat4(glm.INSTANCE.lookAt(new Vec3(0.0f, 0.0f, 2.0f), new Vec3(0.0f, 0.0f, -1.0f), new Vec3(0.0f, 1.0f, 0.0f)));
-  private final Mat4[] jointMatrices = new Mat4[25];
-  private final float[] projectionMatrix = new float[16];
+  private final float[] modelMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+  // this is fucked up because the order is x, z, y where z is pointing upward
+  private final Mat4 viewMatrix = new Mat4(glm.INSTANCE.lookAt(new Vec3(0.0f, -10.0f, 5.0f), new Vec3(0.0f, 0.0f, 0.0f), new Vec3(0.0f, 1.0f, 0.0f)));
+  private final float[] jointMatrices = new float[400];
+  // private final float[] projectionMatrix = new float[16];
+  private final Mat4 projectionMatrix = new Mat4(glm.INSTANCE.perspective(75.0f, 1 / 1, Z_NEAR, Z_FAR));
   private final float[] modelViewMatrix = new float[16]; // view x model
-  private final float[] modelViewProjectionMatrix = new float[16];  // projection x view x model
   private final float[] sphericalHarmonicsCoefficients = new float[9 * 3];
   private final float[] viewInverseMatrix = new float[16];
   private final float[] worldLightDirection = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -353,102 +354,23 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       backgroundRenderer = new BackgroundRenderer(render);
       virtualSceneFramebuffer = new Framebuffer(render, /*width=*/ 1, /*height=*/ 1);
 
-//      cubemapFilter =
-//      new SpecularCubemapFilter(
-//              render, CUBEMAP_RESOLUTION, CUBEMAP_NUMBER_OF_IMPORTANCE_SAMPLES);
-//      Load DFG lookup table for environmental lighting
-//      dfgTexture =
-//          new Texture(
-//              render,
-//              Texture.Target.TEXTURE_2D,
-//              Texture.WrapMode.CLAMP_TO_EDGE,
-//              /*useMipmaps=*/ // false);
-//
-//      // The dfg.raw file is a raw half-float texture with two channels.
-//      final int dfgResolution = 64;
-//      final int dfgChannels = 2;
-//      final int halfFloatSize = 2;
-//
-//      ByteBuffer buffer =
-//          ByteBuffer.allocateDirect(dfgResolution * dfgResolution * dfgChannels * halfFloatSize);
-//      try (InputStream is = getAssets().open("models/dfg.raw")) {
-//        is.read(buffer.array());
-//      }
-//      // SampleRender abstraction leaks here.
-//      GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, dfgTexture.getTextureId());
-//      GLError.maybeThrowGLException("Failed to bind DFG texture", "glBindTexture");
-//      GLES30.glTexImage2D(
-//          GLES30.GL_TEXTURE_2D,
-//          /*level=*/ 0,
-//          GLES30.GL_RG16F,
-//          /*width=*/ dfgResolution,
-//          /*height=*/ dfgResolution,
-//          /*border=*/ 0,
-//          GLES30.GL_RG,
-//          GLES30.GL_HALF_FLOAT,
-//          buffer);
-//      GLError.maybeThrowGLException("Failed to populate DFG texture", "glTexImage2D");
-
-      // Point cloud
-//      pointCloudShader =
-//          Shader.createFromAssets(
-//                  render, "shaders/point_cloud.vert", "shaders/point_cloud.frag", /*defines=*/ null)
-//              .setVec4(
-//                  "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 1.0f})
-//              .setFloat("u_PointSize", 5.0f);
-//      // four entries per vertex: X, Y, Z, confidence
-//      pointCloudVertexBuffer =
-//          new VertexBuffer(render, /*numberOfEntriesPerVertex=*/ 4, /*entries=*/ null);
-//      final VertexBuffer[] pointCloudVertexBuffers = {pointCloudVertexBuffer};
-//      pointCloudMesh =
-//          new Mesh(
-//              render, Mesh.PrimitiveMode.POINTS, /*indexBuffer=*/ null, pointCloudVertexBuffers);
-
-      // Virtual object to render (ARCore pawn)
-//      Texture virtualObjectAlbedoTexture =
-//          Texture.createFromAsset(
-//              render,
-//              "models/pawn_albedo.png",
-//              Texture.WrapMode.CLAMP_TO_EDGE,
-//              Texture.ColorFormat.SRGB);
-//      Texture virtualObjectPbrTexture =
-//          Texture.createFromAsset(
-//              render,
-//              "models/pawn_roughness_metallic_ao.png",
-//              Texture.WrapMode.CLAMP_TO_EDGE,
-//              Texture.ColorFormat.LINEAR);
       virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb", loader);
 
-      modelMatrix.translateAssign(loader.getTranslation()[0], loader.getTranslation()[1], loader.getTranslation()[2]);
+      modelMatrix[12] = loader.getTranslation()[0];
+      modelMatrix[13] = loader.getTranslation()[1];
+      modelMatrix[14] = loader.getTranslation()[2];
+
+      float[] identityMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+      float[] inverseModelMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, -loader.getTranslation()[0], -loader.getTranslation()[1], -loader.getTranslation()[2], 1.0f};
 
       // int[] jointIndexes = new int[] { 24, 23, 3, 2, 1, 0, 7, 6, 5, 4, 22, 21, 20, 9, 8, 14, 13, 12, 11, 10, 19, 18, 17, 16, 15 };
+      // int[] jointIndexes = new int[] { 5, 4, 3, 2, 9, 8, 7, 6, 14, 13, 19, 18, 17, 16, 15, 24, 23, 22, 21, 20, 12, 11, 10, 1, 0 };
 
-      for (int i = 0; i < jointMatrices.length; i++)
+      for (int i = 0; i < 25; i++)
       {
-        // jointMatrices[i] = new Mat4(modelMatrix.inverse());
-        // jointMatrices[i] = new Mat4(loader.getInverseBindMatrices(i));
-//
-//        Mat4 jointTransformation = new Mat4(1.0f);
-//        jointTransformation.translateAssign(loader.getJointTranslation(i)[0], loader.getJointTranslation(i)[1], loader.getJointTranslation(i)[2]);
-//
-//        Quat quaternion = new Quat(loader.getJointRotation(i)[0], loader.getJointRotation(i)[1], loader.getJointRotation(i)[2], loader.getJointRotation(i)[3]);
-//        Mat4 jointRotation = new Mat4(quaternion.toMat4());
-//
-//        // jointTransformation.timesAssign(jointRotation);
-//
-//        jointMatrices[i].timesAssign(jointTransformation);
-        // jointMatrices[i].timesAssign(new Mat4(loader.getInverseBindMatrices(i)));
-        jointMatrices[i] = new Mat4(modelMatrix.inverse());
-      }
-
-      float[] jointMatricesFloatArray = new float[jointMatrices.length * 16];
-
-      for (int i = 0; i < jointMatrices.length; i++)
-      {
-        for (int j = 0; j < 16; j++)
-        {
-          jointMatricesFloatArray[i * 16 + j] = jointMatrices[i].toFloatArray()[j];
-        }
+        Matrix.multiplyMM(jointMatrices, i * 16, identityMatrix, 0, inverseModelMatrix, 0);
+        Matrix.multiplyMM(jointMatrices, i * 16, jointMatrices, i * 16, loader.getJointTransformation(i), 0);
+        Matrix.multiplyMM(jointMatrices, i * 16, jointMatrices, i * 16, loader.getInverseBindMatrices(i), 0);
       }
 
       virtualObjectShader =
@@ -461,11 +383,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
                   .setVec4(
                           "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 0.5f})
                   .setFloat("u_PointSize", 5.0f)
-                  .setMat4Array("u_jointMatrix", jointMatricesFloatArray);
-//              .setTexture("u_AlbedoTexture", virtualObjectAlbedoTexture)
-//              .setTexture("u_RoughnessMetallicAmbientOcclusionTexture", virtualObjectPbrTexture)
-//              .setTexture("u_Cubemap", cubemapFilter.getFilteredCubemapTexture())
-//              .setTexture("u_DfgTexture", dfgTexture);
+                  .setMat4Array("u_jointMatrix", jointMatrices);
     } catch (IOException e) {
       Log.e(TAG, "Failed to read a required asset file", e);
       messageSnackbarHelper.showError(this, "Failed to read a required asset file: " + e);
@@ -527,44 +445,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // used to draw the background camera image.
     backgroundRenderer.updateDisplayGeometry(frame);
 
-//    if (camera.getTrackingState() == TrackingState.TRACKING
-//        && (depthSettings.useDepthForOcclusion()
-//            || depthSettings.depthColorVisualizationEnabled())) {
-//      try (Image depthImage = frame.acquireDepthImage()) {
-//        backgroundRenderer.updateCameraDepthTexture(depthImage);
-//      } catch (NotYetAvailableException e) {
-//        // This normally means that depth data is not available yet. This is normal so we will not
-//        // spam the logcat with this.
-//      }
-//    }
-
-    // Handle one tap per frame.
-    // handleTap(frame, camera);      // COORDINATE INPUT VIA TAPPING IN SPACE.
-
     // Keep the screen unlocked while tracking, but allow it to lock when tracking stops.
     trackingStateHelper.updateKeepScreenOnFlag(camera.getTrackingState());
-
-    // Show a message based on whether tracking has failed, if planes are detected, and if the user
-    // has placed any objects.
-//    String message = null;
-//    if (camera.getTrackingState() == TrackingState.PAUSED) {
-//      if (camera.getTrackingFailureReason() == TrackingFailureReason.NONE) {
-//        message = SEARCHING_PLANE_MESSAGE;
-//      } else {
-//        message = TrackingStateHelper.getTrackingFailureReasonString(camera);
-//      }
-//    } else if (hasTrackingPlane()) {
-//      if (anchors.isEmpty()) {
-//        message = WAITING_FOR_TAP_MESSAGE;
-//      }
-//    } else {
-//      message = SEARCHING_PLANE_MESSAGE;
-//    }
-//    if (message == null) {
-//      messageSnackbarHelper.hide(this);
-//    } else {
-//      messageSnackbarHelper.showMessage(this, message);
-//    }
 
     // -- Draw background
 
@@ -574,53 +456,15 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       backgroundRenderer.drawBackground(render);
     }
 
-    // If not tracking, don't draw 3D objects.
-//    if (camera.getTrackingState() == TrackingState.PAUSED) {
-//      return;
-//    }
-
-    // -- Draw non-occluded virtual objects (planes, point cloud)
-
-    // Visualize tracked points.
-    // Use try-with-resources to automatically release the point cloud.
-//    try (PointCloud pointCloud = frame.acquirePointCloud()) {
-//      if (pointCloud.getTimestamp() > lastPointCloudTimestamp) {
-//        pointCloudVertexBuffer.set(pointCloud.getPoints());
-//        lastPointCloudTimestamp = pointCloud.getTimestamp();
-//      }
-//      Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
-//      pointCloudShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
-//      render.draw(pointCloudMesh, pointCloudShader);
-//    }
-//
-//    // Visualize planes.
-//    planeRenderer.drawPlanes(
-//        render,
-//        session.getAllTrackables(Plane.class),
-//        camera.getDisplayOrientedPose(),
-//        projectionMatrix);
-
-
-    // -- Draw occluded virtual objects
-
-    // Update lighting parameters in the shader
-    // updateLightEstimation(frame.getLightEstimate(), viewMatrix);
-
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
 
-    // Get projection matrix.
-    camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
-
     // Calculate model/view/projection matrices
-    Matrix.multiplyMM(modelViewMatrix, 0, modelMatrix.toFloatArray(),0, viewMatrix.toFloatArray(), 0);
-//    Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
+    Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix.toFloatArray(),0, modelMatrix, 0);
 
     // Update shader properties and draw
-    // virtualObjectShader.setMat4("u_ModelView", modelViewMatrix);
-    // virtualObjectShader.setMat4("u_viewMatrix", viewMatrix.toFloatArray());
     virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
-    virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix);
+    virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix.toFloatArray());
     render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
 
     // Compose the virtual scene with the background.

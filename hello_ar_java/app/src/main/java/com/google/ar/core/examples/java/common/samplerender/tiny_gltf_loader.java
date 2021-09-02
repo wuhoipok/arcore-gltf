@@ -11,6 +11,13 @@ public class tiny_gltf_loader
 
     public native void loadBinaryFromFile(String filename);
 
+    public float[] getScale() { return scale; }
+    public float[] getTranslation() { return translation; }
+    public float[] getRotation() { return rotation; }
+
+    public float[] getJointTransformation(int index) { return Arrays.copyOfRange(jointTransformation, 16 * index, 16 * (index + 1)); }
+    public float[] getInverseBindMatrices(int index) { return Arrays.copyOfRange(inverseBindMatrices, 16 * index, 16 * (index + 1)); }
+
     public IntBuffer getIndices()
     {
         IntBuffer intBuffer = createDirectIntBuffer(4 * indices.length);
@@ -52,14 +59,6 @@ public class tiny_gltf_loader
         return floatBuffer;
     }
 
-    public float[] getScale() { return scale; }
-    public float[] getTranslation() { return translation; }
-    public float[] getRotation() { return rotation; }
-
-    public float[] getJointTranslation(int index) { return Arrays.copyOfRange(jointTranslation, 3 * index, 3 * (index + 1)); }
-    public float[] getJointRotation(int index) { return Arrays.copyOfRange(jointRotation, 4 * index, 4 * (index + 1)); }
-    public float[] getInverseBindMatrices(int index) { return Arrays.copyOfRange(inverseBindMatrices, 16 * index, 16 * (index + 1)); }
-
     private int[] indices;
     private float[] vertices;
     private float[] normals;
@@ -71,8 +70,7 @@ public class tiny_gltf_loader
     private float[] translation;
     private float[] rotation;
 
-    private float[] jointTranslation;
-    private float[] jointRotation;
+    private float[] jointTransformation;
     private float[] inverseBindMatrices;
 
     static
