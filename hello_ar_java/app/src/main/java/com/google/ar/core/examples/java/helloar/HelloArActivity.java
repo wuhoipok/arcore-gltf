@@ -19,6 +19,7 @@ package com.google.ar.core.examples.java.helloar;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.media.Image;
+import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.Bundle;
@@ -60,6 +61,7 @@ import com.google.ar.core.examples.java.common.helpers.SnackbarHelper;
 import com.google.ar.core.examples.java.common.helpers.TapHelper;
 import com.google.ar.core.examples.java.common.helpers.TrackingStateHelper;
 import com.google.ar.core.examples.java.common.samplerender.Framebuffer;
+import com.google.ar.core.examples.java.common.samplerender.GLError;
 import com.google.ar.core.examples.java.common.samplerender.Mesh;
 import com.google.ar.core.examples.java.common.samplerender.SampleRender;
 import com.google.ar.core.examples.java.common.samplerender.Shader;
@@ -78,8 +80,11 @@ import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -104,15 +109,15 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
   // See the definition of updateSphericalHarmonicsCoefficients for an explanation of these
   // constants.
   private static final float[] sphericalHarmonicFactors = {
-    0.282095f,
-    -0.325735f,
-    0.325735f,
-    -0.325735f,
-    0.273137f,
-    -0.273137f,
-    0.078848f,
-    -0.273137f,
-    0.136569f,
+          0.282095f,
+          -0.325735f,
+          0.325735f,
+          -0.325735f,
+          0.273137f,
+          -0.273137f,
+          0.078848f,
+          -0.273137f,
+          0.136569f,
   };
 
   private static final float Z_NEAR = 0.1f;
@@ -169,16 +174,16 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
   private Texture dfgTexture;
   private SpecularCubemapFilter cubemapFilter;
 
+  // gltf loader
   private final tiny_gltf_loader loader = new tiny_gltf_loader();
 
   // Temporary matrix allocated here to reduce number of allocations for each frame.
-  private final float[] modelMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-  // this is fucked up because the order is x, z, y where z is pointing upward
-  private final Mat4 viewMatrix = new Mat4(glm.INSTANCE.lookAt(new Vec3(0.0f, -10.0f, 5.0f), new Vec3(0.0f, 0.0f, 0.0f), new Vec3(0.0f, 1.0f, 0.0f)));
+  private final float[] modelMatrix = new float[16];
+  private final float[] viewMatrix = new float[16];
   private final float[] jointMatrices = new float[400];
-  // private final float[] projectionMatrix = new float[16];
-  private final Mat4 projectionMatrix = new Mat4(glm.INSTANCE.perspective(75.0f, 1 / 1, Z_NEAR, Z_FAR));
+  private final float[] projectionMatrix = new float[16];
   private final float[] modelViewMatrix = new float[16]; // view x model
+  private final float[] modelViewProjectionMatrix = new float[16]; // projection x view x model
   private final float[] sphericalHarmonicsCoefficients = new float[9 * 3];
   private final float[] viewInverseMatrix = new float[16];
   private final float[] worldLightDirection = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -192,8 +197,8 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
 
     // Set up touch listener.
-//    tapHelper = new TapHelper(/*context=*/ this);
-//    surfaceView.setOnTouchListener(tapHelper);
+    tapHelper = new TapHelper(/*context=*/ this);
+    surfaceView.setOnTouchListener(tapHelper);
 
     // Set up renderer.
     render = new SampleRender(surfaceView, this, getAssets());
@@ -204,15 +209,15 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     instantPlacementSettings.onCreate(this);
     ImageButton settingsButton = findViewById(R.id.settings_button);
     settingsButton.setOnClickListener(
-        new View.OnClickListener() {
-          @Override
-          public void onClick(View v) {
-            PopupMenu popup = new PopupMenu(HelloArActivity.this, v);
-            popup.setOnMenuItemClickListener(HelloArActivity.this::settingsMenuClick);
-            popup.inflate(R.menu.settings_menu);
-            popup.show();
-          }
-        });
+            new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                PopupMenu popup = new PopupMenu(HelloArActivity.this, v);
+                popup.setOnMenuItemClickListener(HelloArActivity.this::settingsMenuClick);
+                popup.inflate(R.menu.settings_menu);
+                popup.show();
+              }
+            });
   }
 
   /** Menu button to launch feature specific settings. */
@@ -267,7 +272,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
         // Create the session.
         session = new Session(/* context= */ this);
       } catch (UnavailableArcoreNotInstalledException
-          | UnavailableUserDeclinedInstallationException e) {
+              | UnavailableUserDeclinedInstallationException e) {
         message = "Please install ARCore";
         exception = e;
       } catch (UnavailableApkTooOldException e) {
@@ -330,7 +335,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     if (!CameraPermissionHelper.hasCameraPermission(this)) {
       // Use toast instead of snackbar here since the activity will exit.
       Toast.makeText(this, "Camera permission is needed to run this application", Toast.LENGTH_LONG)
-          .show();
+              .show();
       if (!CameraPermissionHelper.shouldShowRequestPermissionRationale(this)) {
         // Permission denied with checking "Do not ask again".
         CameraPermissionHelper.launchPermissionSettings(this);
@@ -350,40 +355,84 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Prepare the rendering objects. This involves reading shaders and 3D model files, so may throw
     // an IOException.
     try {
-      // planeRenderer = new PlaneRenderer(render);
+      planeRenderer = new PlaneRenderer(render);
       backgroundRenderer = new BackgroundRenderer(render);
       virtualSceneFramebuffer = new Framebuffer(render, /*width=*/ 1, /*height=*/ 1);
 
+      cubemapFilter =
+              new SpecularCubemapFilter(
+                      render, CUBEMAP_RESOLUTION, CUBEMAP_NUMBER_OF_IMPORTANCE_SAMPLES);
+//      // Load DFG lookup table for environmental lighting
+//      dfgTexture =
+//              new Texture(
+//                      render,
+//                      Texture.Target.TEXTURE_2D,
+//                      Texture.WrapMode.CLAMP_TO_EDGE,
+//                      /*useMipmaps=*/ false);
+//      // The dfg.raw file is a raw half-float texture with two channels.
+//      final int dfgResolution = 64;
+//      final int dfgChannels = 2;
+//      final int halfFloatSize = 2;
+//
+//      ByteBuffer buffer =
+//              ByteBuffer.allocateDirect(dfgResolution * dfgResolution * dfgChannels * halfFloatSize);
+//      try (InputStream is = getAssets().open("models/dfg.raw")) {
+//        is.read(buffer.array());
+//      }
+//      // SampleRender abstraction leaks here.
+//      GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, dfgTexture.getTextureId());
+//      GLError.maybeThrowGLException("Failed to bind DFG texture", "glBindTexture");
+//      GLES30.glTexImage2D(
+//              GLES30.GL_TEXTURE_2D,
+//              /*level=*/ 0,
+//              GLES30.GL_RG16F,
+//              /*width=*/ dfgResolution,
+//              /*height=*/ dfgResolution,
+//              /*border=*/ 0,
+//              GLES30.GL_RG,
+//              GLES30.GL_HALF_FLOAT,
+//              buffer);
+//      GLError.maybeThrowGLException("Failed to populate DFG texture", "glTexImage2D");
+
+      // Point cloud
+      pointCloudShader =
+              Shader.createFromAssets(
+                      render, "shaders/point_cloud.vert", "shaders/point_cloud.frag", /*defines=*/ null)
+                      .setVec4(
+                              "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 1.0f})
+                      .setFloat("u_PointSize", 5.0f);
+      // four entries per vertex: X, Y, Z, confidence
+      pointCloudVertexBuffer =
+              new VertexBuffer(render, /*numberOfEntriesPerVertex=*/ 4, /*entries=*/ null);
+      final VertexBuffer[] pointCloudVertexBuffers = {pointCloudVertexBuffer};
+      pointCloudMesh =
+              new Mesh(
+                      render, Mesh.PrimitiveMode.POINTS, /*indexBuffer=*/ null, pointCloudVertexBuffers);
+
+      // Virtual object to render (ARCore pawn)
+//      Texture virtualObjectAlbedoTexture =
+//              Texture.createFromAsset(
+//                      render,
+//                      "models/pawn_albedo.png",
+//                      Texture.WrapMode.CLAMP_TO_EDGE,
+//                      Texture.ColorFormat.SRGB);
+//      Texture virtualObjectPbrTexture =
+//              Texture.createFromAsset(
+//                      render,
+//                      "models/pawn_roughness_metallic_ao.png",
+//                      Texture.WrapMode.CLAMP_TO_EDGE,
+//                      Texture.ColorFormat.LINEAR);
       virtualObjectMesh = Mesh.createFromGltfAsset(render, "https://raw.githubusercontent.com/jayw0/arcore-gltf/main/hello_ar_java/app/src/main/assets/models/human.glb", loader);
 
-      modelMatrix[12] = loader.getTranslation()[0];
-      modelMatrix[13] = loader.getTranslation()[1];
-      modelMatrix[14] = loader.getTranslation()[2];
-
-      float[] identityMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-      float[] inverseModelMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, -loader.getTranslation()[0], -loader.getTranslation()[1], -loader.getTranslation()[2], 1.0f};
-
-      // int[] jointIndexes = new int[] { 24, 23, 3, 2, 1, 0, 7, 6, 5, 4, 22, 21, 20, 9, 8, 14, 13, 12, 11, 10, 19, 18, 17, 16, 15 };
-      // int[] jointIndexes = new int[] { 5, 4, 3, 2, 9, 8, 7, 6, 14, 13, 19, 18, 17, 16, 15, 24, 23, 22, 21, 20, 12, 11, 10, 1, 0 };
-
-      for (int i = 0; i < 25; i++)
-      {
-        Matrix.multiplyMM(jointMatrices, i * 16, identityMatrix, 0, inverseModelMatrix, 0);
-        Matrix.multiplyMM(jointMatrices, i * 16, jointMatrices, i * 16, loader.getJointTransformation(i), 0);
-        Matrix.multiplyMM(jointMatrices, i * 16, jointMatrices, i * 16, loader.getInverseBindMatrices(i), 0);
-      }
-
       virtualObjectShader =
-          Shader.createFromAssets(
-                  render,
-                  "shaders/skinning.vert",
-                  "shaders/point_cloud.frag",
-                  null
-                  )
-                  .setVec4(
-                          "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 0.5f})
-                  .setFloat("u_PointSize", 5.0f)
-                  .setMat4Array("u_jointMatrix", jointMatrices);
+              Shader.createFromAssets(
+                      render,
+                      "shaders/skinning.vert",
+                      "shaders/point_cloud.frag",
+                      null)
+                      .setVec4(
+                              "u_Color", new float[] {31.0f / 255.0f, 188.0f / 255.0f, 210.0f / 255.0f, 0.5f})
+                      .setFloat("u_PointSize", 5.0f);
     } catch (IOException e) {
       Log.e(TAG, "Failed to read a required asset file", e);
       messageSnackbarHelper.showError(this, "Failed to read a required asset file: " + e);
@@ -398,7 +447,6 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
   @Override
   public void onDrawFrame(SampleRender render) {
-
     if (session == null) {
       return;
     }
@@ -408,7 +456,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // initialized during the execution of onSurfaceCreated.
     if (!hasSetTextureNames) {
       session.setCameraTextureNames(
-          new int[] {backgroundRenderer.getCameraColorTexture().getTextureId()});
+              new int[] {backgroundRenderer.getCameraColorTexture().getTextureId()});
       hasSetTextureNames = true;
     }
 
@@ -434,7 +482,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // Update BackgroundRenderer state to match the depth settings.
     try {
       backgroundRenderer.setUseDepthVisualization(
-          render, depthSettings.depthColorVisualizationEnabled());
+              render, depthSettings.depthColorVisualizationEnabled());
       backgroundRenderer.setUseOcclusion(render, depthSettings.useDepthForOcclusion());
     } catch (IOException e) {
       Log.e(TAG, "Failed to read a required asset file", e);
@@ -445,8 +493,44 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     // used to draw the background camera image.
     backgroundRenderer.updateDisplayGeometry(frame);
 
+    if (camera.getTrackingState() == TrackingState.TRACKING
+            && (depthSettings.useDepthForOcclusion()
+            || depthSettings.depthColorVisualizationEnabled())) {
+      try (Image depthImage = frame.acquireDepthImage()) {
+        backgroundRenderer.updateCameraDepthTexture(depthImage);
+      } catch (NotYetAvailableException e) {
+        // This normally means that depth data is not available yet. This is normal so we will not
+        // spam the logcat with this.
+      }
+    }
+
+    // Handle one tap per frame.
+    handleTap(frame, camera);
+
     // Keep the screen unlocked while tracking, but allow it to lock when tracking stops.
     trackingStateHelper.updateKeepScreenOnFlag(camera.getTrackingState());
+
+    // Show a message based on whether tracking has failed, if planes are detected, and if the user
+    // has placed any objects.
+    String message = null;
+    if (camera.getTrackingState() == TrackingState.PAUSED) {
+      if (camera.getTrackingFailureReason() == TrackingFailureReason.NONE) {
+        message = SEARCHING_PLANE_MESSAGE;
+      } else {
+        message = TrackingStateHelper.getTrackingFailureReasonString(camera);
+      }
+    } else if (hasTrackingPlane()) {
+      if (anchors.isEmpty()) {
+        message = WAITING_FOR_TAP_MESSAGE;
+      }
+    } else {
+      message = SEARCHING_PLANE_MESSAGE;
+    }
+    if (message == null) {
+      messageSnackbarHelper.hide(this);
+    } else {
+      messageSnackbarHelper.showMessage(this, message);
+    }
 
     // -- Draw background
 
@@ -456,16 +540,75 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       backgroundRenderer.drawBackground(render);
     }
 
+    // If not tracking, don't draw 3D objects.
+    if (camera.getTrackingState() == TrackingState.PAUSED) {
+      return;
+    }
+
+    // -- Draw non-occluded virtual objects (planes, point cloud)
+
+    // Get projection matrix.
+    camera.getProjectionMatrix(projectionMatrix, 0, Z_NEAR, Z_FAR);
+
+    // Get camera matrix and draw.
+    camera.getViewMatrix(viewMatrix, 0);
+
+    // Visualize tracked points.
+    // Use try-with-resources to automatically release the point cloud.
+    try (PointCloud pointCloud = frame.acquirePointCloud()) {
+      if (pointCloud.getTimestamp() > lastPointCloudTimestamp) {
+        pointCloudVertexBuffer.set(pointCloud.getPoints());
+        lastPointCloudTimestamp = pointCloud.getTimestamp();
+      }
+      Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
+      pointCloudShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
+      render.draw(pointCloudMesh, pointCloudShader);
+    }
+
+    // Visualize planes.
+    planeRenderer.drawPlanes(
+            render,
+            session.getAllTrackables(Plane.class),
+            camera.getDisplayOrientedPose(),
+            projectionMatrix);
+
+    // -- Draw occluded virtual objects
+
+    // Update lighting parameters in the shader
+    // updateLightEstimation(frame.getLightEstimate(), viewMatrix);
+
     // Visualize anchors created by touch.
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f);
+    for (Anchor anchor : anchors) {
+      if (anchor.getTrackingState() != TrackingState.TRACKING) {
+        continue;
+      }
 
-    // Calculate model/view/projection matrices
-    Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix.toFloatArray(),0, modelMatrix, 0);
+      // Get the current pose of an Anchor in world space. The Anchor pose is updated
+      // during calls to session.update() as ARCore refines its estimate of the world.
+      anchor.getPose().toMatrix(modelMatrix, 0);
 
-    // Update shader properties and draw
-    virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
-    virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix.toFloatArray());
-    render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
+      // float[] identityMatrix = new float[] {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+
+      float[] inverseModelMatrix = new float[16];
+      Matrix.invertM(inverseModelMatrix, 0, modelMatrix, 0);
+
+      for (int i = 0; i < 25; i++)
+      {
+        Matrix.multiplyMM(jointMatrices, i * 16, loader.getInverseBindMatrices(i), 0, loader.getJointTransformations(i), 0);
+      }
+
+      // Calculate model/view/projection matrices
+      Matrix.multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+      // Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewMatrix, 0);
+
+      // Update shader properties and draw
+      virtualObjectShader.setMat4("u_modelViewMatrix", modelViewMatrix);
+      virtualObjectShader.setMat4("u_projectionMatrix", projectionMatrix);
+      virtualObjectShader.setMat4Array("u_jointMatrix", jointMatrices);
+
+      render.draw(virtualObjectMesh, virtualObjectShader, virtualSceneFramebuffer);
+    }
 
     // Compose the virtual scene with the background.
     backgroundRenderer.drawVirtualScene(render, virtualSceneFramebuffer, Z_NEAR, Z_FAR);
@@ -478,7 +621,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       List<HitResult> hitResultList;
       if (instantPlacementSettings.isInstantPlacementEnabled()) {
         hitResultList =
-            frame.hitTestInstantPlacement(tap.getX(), tap.getY(), APPROXIMATE_DISTANCE_METERS);
+                frame.hitTestInstantPlacement(tap.getX(), tap.getY(), APPROXIMATE_DISTANCE_METERS);
       } else {
         hitResultList = frame.hitTest(tap);
       }
@@ -490,11 +633,11 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
         if ((trackable instanceof Plane
                 && ((Plane) trackable).isPoseInPolygon(hit.getHitPose())
                 && (PlaneRenderer.calculateDistanceToPlane(hit.getHitPose(), camera.getPose()) > 0))
-            || (trackable instanceof Point
+                || (trackable instanceof Point
                 && ((Point) trackable).getOrientationMode()
-                    == OrientationMode.ESTIMATED_SURFACE_NORMAL)
-            || (trackable instanceof InstantPlacementPoint)
-            || (trackable instanceof DepthPoint)) {
+                == OrientationMode.ESTIMATED_SURFACE_NORMAL)
+                || (trackable instanceof InstantPlacementPoint)
+                || (trackable instanceof DepthPoint)) {
           // Cap the number of objects created. This avoids overloading both the
           // rendering system and ARCore.
           if (anchors.size() >= 20) {
@@ -530,38 +673,38 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     // Asks the user whether they want to use depth-based occlusion.
     new AlertDialog.Builder(this)
-        .setTitle(R.string.options_title_with_depth)
-        .setMessage(R.string.depth_use_explanation)
-        .setPositiveButton(
-            R.string.button_text_enable_depth,
-            (DialogInterface dialog, int which) -> {
-              depthSettings.setUseDepthForOcclusion(true);
-            })
-        .setNegativeButton(
-            R.string.button_text_disable_depth,
-            (DialogInterface dialog, int which) -> {
-              depthSettings.setUseDepthForOcclusion(false);
-            })
-        .show();
+            .setTitle(R.string.options_title_with_depth)
+            .setMessage(R.string.depth_use_explanation)
+            .setPositiveButton(
+                    R.string.button_text_enable_depth,
+                    (DialogInterface dialog, int which) -> {
+                      depthSettings.setUseDepthForOcclusion(true);
+                    })
+            .setNegativeButton(
+                    R.string.button_text_disable_depth,
+                    (DialogInterface dialog, int which) -> {
+                      depthSettings.setUseDepthForOcclusion(false);
+                    })
+            .show();
   }
 
   private void launchInstantPlacementSettingsMenuDialog() {
     resetSettingsMenuDialogCheckboxes();
     Resources resources = getResources();
     new AlertDialog.Builder(this)
-        .setTitle(R.string.options_title_instant_placement)
-        .setMultiChoiceItems(
-            resources.getStringArray(R.array.instant_placement_options_array),
-            instantPlacementSettingsMenuDialogCheckboxes,
-            (DialogInterface dialog, int which, boolean isChecked) ->
-                instantPlacementSettingsMenuDialogCheckboxes[which] = isChecked)
-        .setPositiveButton(
-            R.string.done,
-            (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
-        .setNegativeButton(
-            android.R.string.cancel,
-            (DialogInterface dialog, int which) -> resetSettingsMenuDialogCheckboxes())
-        .show();
+            .setTitle(R.string.options_title_instant_placement)
+            .setMultiChoiceItems(
+                    resources.getStringArray(R.array.instant_placement_options_array),
+                    instantPlacementSettingsMenuDialogCheckboxes,
+                    (DialogInterface dialog, int which, boolean isChecked) ->
+                            instantPlacementSettingsMenuDialogCheckboxes[which] = isChecked)
+            .setPositiveButton(
+                    R.string.done,
+                    (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
+            .setNegativeButton(
+                    android.R.string.cancel,
+                    (DialogInterface dialog, int which) -> resetSettingsMenuDialogCheckboxes())
+            .show();
   }
 
   /** Shows checkboxes to the user to facilitate toggling of depth-based effects. */
@@ -574,27 +717,27 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
       // With depth support, the user can select visualization options.
       new AlertDialog.Builder(this)
-          .setTitle(R.string.options_title_with_depth)
-          .setMultiChoiceItems(
-              resources.getStringArray(R.array.depth_options_array),
-              depthSettingsMenuDialogCheckboxes,
-              (DialogInterface dialog, int which, boolean isChecked) ->
-                  depthSettingsMenuDialogCheckboxes[which] = isChecked)
-          .setPositiveButton(
-              R.string.done,
-              (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
-          .setNegativeButton(
-              android.R.string.cancel,
-              (DialogInterface dialog, int which) -> resetSettingsMenuDialogCheckboxes())
-          .show();
+              .setTitle(R.string.options_title_with_depth)
+              .setMultiChoiceItems(
+                      resources.getStringArray(R.array.depth_options_array),
+                      depthSettingsMenuDialogCheckboxes,
+                      (DialogInterface dialog, int which, boolean isChecked) ->
+                              depthSettingsMenuDialogCheckboxes[which] = isChecked)
+              .setPositiveButton(
+                      R.string.done,
+                      (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
+              .setNegativeButton(
+                      android.R.string.cancel,
+                      (DialogInterface dialog, int which) -> resetSettingsMenuDialogCheckboxes())
+              .show();
     } else {
       // Without depth support, no settings are available.
       new AlertDialog.Builder(this)
-          .setTitle(R.string.options_title_without_depth)
-          .setPositiveButton(
-              R.string.done,
-              (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
-          .show();
+              .setTitle(R.string.options_title_without_depth)
+              .setPositiveButton(
+                      R.string.done,
+                      (DialogInterface dialogInterface, int which) -> applySettingsMenuDialogCheckboxes())
+              .show();
     }
   }
 
@@ -602,7 +745,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     depthSettings.setUseDepthForOcclusion(depthSettingsMenuDialogCheckboxes[0]);
     depthSettings.setDepthColorVisualizationEnabled(depthSettingsMenuDialogCheckboxes[1]);
     instantPlacementSettings.setInstantPlacementEnabled(
-        instantPlacementSettingsMenuDialogCheckboxes[0]);
+            instantPlacementSettingsMenuDialogCheckboxes[0]);
     configureSession();
   }
 
@@ -610,7 +753,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     depthSettingsMenuDialogCheckboxes[0] = depthSettings.useDepthForOcclusion();
     depthSettingsMenuDialogCheckboxes[1] = depthSettings.depthColorVisualizationEnabled();
     instantPlacementSettingsMenuDialogCheckboxes[0] =
-        instantPlacementSettings.isInstantPlacementEnabled();
+            instantPlacementSettings.isInstantPlacementEnabled();
   }
 
   /** Checks if we detected at least one plane. */
@@ -635,11 +778,11 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     virtualObjectShader.setMat4("u_ViewInverse", viewInverseMatrix);
 
     updateMainLight(
-        lightEstimate.getEnvironmentalHdrMainLightDirection(),
-        lightEstimate.getEnvironmentalHdrMainLightIntensity(),
-        viewMatrix);
+            lightEstimate.getEnvironmentalHdrMainLightDirection(),
+            lightEstimate.getEnvironmentalHdrMainLightIntensity(),
+            viewMatrix);
     updateSphericalHarmonicsCoefficients(
-        lightEstimate.getEnvironmentalHdrAmbientSphericalHarmonics());
+            lightEstimate.getEnvironmentalHdrAmbientSphericalHarmonics());
     cubemapFilter.update(lightEstimate.acquireEnvironmentalHdrCubeMap());
   }
 
@@ -670,7 +813,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
 
     if (coefficients.length != 9 * 3) {
       throw new IllegalArgumentException(
-          "The given coefficients array must be of length 27 (3 components per 9 coefficients");
+              "The given coefficients array must be of length 27 (3 components per 9 coefficients");
     }
 
     // Apply each factor to every component of each coefficient
@@ -678,13 +821,13 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
       sphericalHarmonicsCoefficients[i] = coefficients[i] * sphericalHarmonicFactors[i / 3];
     }
     virtualObjectShader.setVec3Array(
-        "u_SphericalHarmonicsCoefficients", sphericalHarmonicsCoefficients);
+            "u_SphericalHarmonicsCoefficients", sphericalHarmonicsCoefficients);
   }
 
   /** Configures the session with feature settings. */
   private void configureSession() {
     Config config = session.getConfig();
-    config.setLightEstimationMode(Config.LightEstimationMode.DISABLED);
+    config.setLightEstimationMode(Config.LightEstimationMode.ENVIRONMENTAL_HDR);
     if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
       config.setDepthMode(Config.DepthMode.AUTOMATIC);
     } else {

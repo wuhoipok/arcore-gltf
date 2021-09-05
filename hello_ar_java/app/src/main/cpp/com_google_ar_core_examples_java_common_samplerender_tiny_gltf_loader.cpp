@@ -27,6 +27,8 @@ using namespace tinygltf;
 namespace Mat4
 {
     typedef std::array<float, 16> mat4;
+    typedef std::array<float, 3> vec3;
+    typedef std::array<float, 4> vec4;
 
     mat4 multiplyMM(const mat4& a, const mat4 b)
     {
@@ -56,22 +58,44 @@ namespace Mat4
     {
         mat4 newMat;
 
-        newMat[0] = pow(w, 2) + pow(x, 2) - pow(y, 2) - pow(z, 2);
-        newMat[1] = 2 * x * y + 2 * w * z;
-        newMat[2] = 2 * x * z - 2 * w * y;
-        newMat[3] = 0;
-        newMat[4] = 2 * x * y - 2 * w * z;
-        newMat[5] = 1 - 2 * pow(x, 2) - 2 * pow(z, 2);
-        newMat[6] = 2 * y * z + 2 * w * x;
-        newMat[7] = 0;
-        newMat[8] = 2 * x * y + 2 * w * y;
-        newMat[9] = 2 * y * z - 2 * w * x;
-        newMat[10] = 1 - 2 * pow(x, 2) - 2 * pow(y, 2);
-        newMat[11] = 0;
-        newMat[12] = 0;
-        newMat[13] = 0;
-        newMat[14] = 0;
-        newMat[15] = 1;
+        newMat[0] = 1.0f - 2.0f * y * y - 2.0f * z * z;
+        newMat[1] = 2.0f * x * y + 2.0f * z * w;
+        newMat[2] = 2.0f * x * z - 2.0f * y * w;
+        newMat[3] = 0.0f;
+        newMat[4] = 2.0f * x * y - 2.0f * z * w;
+        newMat[5] = 1.0f - 2.0f * x * x - 2.0f * z * z;
+        newMat[6] = 2.0f * y * z + 2.0f * x * w;
+        newMat[7] = 0.0f;
+        newMat[8] = 2.0f * x * z + 2.0f * y * w;
+        newMat[9] = 2.0f * y * z - 2.0f * x * w;
+        newMat[10] = 1.0f - 2.0f * x * x - 2.0f * y * y;
+        newMat[11] = 0.0f;
+        newMat[12] = 0.0f;
+        newMat[13] = 0.0f;
+        newMat[14] = 0.0f;
+        newMat[15] = 1.0f;
+
+        return newMat;
+    }
+
+    mat4 mat4Transform(const mat4& target, const vec3& translation, const vec4& rotation, const vec3& scale)
+    {
+        mat4 newMat = target;
+
+        newMat[12] += translation[0];
+        newMat[13] += translation[1];
+        newMat[14] += translation[2];
+
+        float x = rotation[0];
+        float y = rotation[1];
+        float z = rotation[2];
+        float w = rotation[3];
+
+        mat4 rotationMatrix = quaternionToMat4(x, y, z, w);
+        newMat = multiplyMM(newMat, rotationMatrix);
+
+        mat4 scaleMatrix = { scale[0], 0.0f, 0.0f, 0.0f, 0.0f, scale[1], 0.0f, 0.0f, 0.0f, 0.0f, scale[2], 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+        newMat = multiplyMM(newMat, scaleMatrix);
 
         return newMat;
     }
@@ -87,26 +111,21 @@ struct aMesh
 public:
 
     void extractInverseBindMatrices(const tinygltf::Node& node, const tinygltf::Model& model);
-    void extractGlobalTransformation(const tinygltf::Node& rootNode);
-    void extractJointTransformation(mat4& mat, int jointIndex, const tinygltf::Model& model);
+    void extractJointTransformation(const mat4& target, int jointNodeIndex, const tinygltf::Model& model);
     void extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf::Model& model);
     void copyToJava(JNIEnv* env, jobject obj);
 
 private:
 
-    std::vector<int> indices;
-    std::vector<float> vertices;
-    std::vector<float> normals;
-    std::vector<float> texcoords;
-    std::vector<float> joints;
-    std::vector<float> weights;
+    std::vector<int> _indices;
+    std::vector<float> _vertices;
+    std::vector<float> _normals;
+    std::vector<float> _texcoords;
+    std::vector<float> _joints;
+    std::vector<float> _weights;
 
-    std::vector<float> scale;
-    std::vector<float> translation;
-    std::vector<float> rotation;
-
-    std::vector<float> jointTransformation;
-    std::vector<float> inverseBindMatrices;
+    std::vector<float> _jointTransformations;
+    std::vector<float> _inverseBindMatrices;
 };
 
 template <typename T>
@@ -145,43 +164,51 @@ void aMesh::extractInverseBindMatrices(const tinygltf::Node& node, const tinyglt
     const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
 
     float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
-    std::vector<float> extractedData{data,data + bufferView.byteLength / sizeof(float)};
+    std::vector<float> inverseBindMatrices{data,data + bufferView.byteLength / sizeof(float)};
 
-    inverseBindMatrices.insert(std::end(inverseBindMatrices), std::begin(extractedData),
-                                   std::end(extractedData));
+    _inverseBindMatrices.insert(std::end(_inverseBindMatrices), std::begin(inverseBindMatrices),
+                                   std::end(inverseBindMatrices));
 }
 
-void aMesh::extractGlobalTransformation(const tinygltf::Node& rootNode)
+void aMesh::extractJointTransformation(const mat4& target, int jointNodeIndex, const tinygltf::Model& model)
 {
-    scale.assign(rootNode.scale.begin(), rootNode.scale.end());
-    translation.assign(rootNode.translation.begin(), rootNode.translation.end());
-    rotation.assign(rootNode.rotation.begin(), rootNode.rotation.end());
-}
+    const tinygltf::Node &jointNode = model.nodes[jointNodeIndex];
 
-void aMesh::extractJointTransformation(mat4& mat, int jointIndex, const tinygltf::Model& model)
-{
-    const tinygltf::Node &jointNode = model.nodes[jointIndex];
+    vec3 translation { 0.0f, 0.0f, 0.0f };
+    vec4 rotation { 0.0f, 0.0f, 0.0f, 1.0f };
+    vec3 scale { 1.0f, 1.0f, 1.0f };
 
     if (!jointNode.translation.empty())
     {
-        mat[12] += jointNode.translation[0];
-        mat[13] += jointNode.translation[1];
-        mat[14] += jointNode.translation[2];
+        translation[0] = jointNode.translation[0];
+        translation[1] = jointNode.translation[1];
+        translation[2] = jointNode.translation[2];
     }
 
     if (!jointNode.rotation.empty())
     {
-        float x = jointNode.rotation[0];
-        float y = jointNode.rotation[1];
-        float z = jointNode.rotation[2];
-        float w = jointNode.rotation[3];
-
-        mat4 rotationMatrix = quaternionToMat4(x, y, z, w);
-        mat = multiplyMM(mat, rotationMatrix);
+        rotation[0] = jointNode.rotation[0];
+        rotation[1] = jointNode.rotation[1];
+        rotation[2] = jointNode.rotation[2];
+        rotation[3] = jointNode.rotation[3];
     }
 
-    jointTransformation.insert(std::end(jointTransformation), std::begin(mat),
-                               std::end(mat));
+    if (!jointNode.scale.empty())
+    {
+        scale[0] = jointNode.scale[0];
+        scale[1] = jointNode.scale[1];
+        scale[2] = jointNode.scale[2];
+    }
+
+    mat4 transformedTarget = mat4Transform(target, translation, rotation, scale);
+
+    _jointTransformations.insert(std::end(_jointTransformations), std::begin(transformedTarget),
+                               std::end(transformedTarget));
+
+    for (const auto& childIndex : jointNode.children)
+    {
+        extractJointTransformation(transformedTarget, childIndex, model);
+    }
 }
 
 void aMesh::extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf::Model& model)
@@ -197,9 +224,9 @@ void aMesh::extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf:
 
         unsigned short *data = (unsigned short *) (indexBuffer.data.data() +
                                                        indexBufferView.byteOffset);
-        std::vector<unsigned short> indexData{data, data + indexBufferView.byteLength / sizeof(unsigned short)};
+        std::vector<unsigned short> indicesData{data, data + indexBufferView.byteLength / sizeof(unsigned short)};
 
-        indices.insert(std::end(indices), std::begin(indexData), std::end(indexData));
+        _indices.insert(std::end(_indices), std::begin(indicesData), std::end(indicesData));
 
         for (const auto &attrib : primitive.attributes)
         {
@@ -208,34 +235,34 @@ void aMesh::extractMeshPrimitiveData(const tinygltf::Node& node, const tinygltf:
             const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
 
             float *data = (float *) (buffer.data.data() + bufferView.byteOffset);
-            std::vector<float> extractedData{data,data + bufferView.byteLength / sizeof(float)};
-
-            unsigned char *intData = (unsigned char *) (buffer.data.data() + bufferView.byteOffset);
-            std::vector<unsigned char> extractedIntData{intData,intData + bufferView.byteLength / sizeof(unsigned char)};
+            std::vector<float> attribData{data,data + bufferView.byteLength / sizeof(float)};
 
             if (attrib.first.compare("POSITION") == 0)
             {
-                vertices.insert(std::end(vertices), std::begin(extractedData), std::end(extractedData));
+                _vertices.insert(std::end(_vertices), std::begin(attribData), std::end(attribData));
             }
 
             else if (attrib.first.compare("NORMAL") == 0)
             {
-                normals.insert(std::end(normals), std::begin(extractedData), std::end(extractedData));
+                _normals.insert(std::end(_normals), std::begin(attribData), std::end(attribData));
             }
 
             else if (attrib.first.compare("TEXCOORD_0") == 0)
             {
-                texcoords.insert(std::end(texcoords), std::begin(extractedData), std::end(extractedData));
+                _texcoords.insert(std::end(_texcoords), std::begin(attribData), std::end(attribData));
             }
 
             else if (attrib.first.compare("JOINTS_0") == 0)
             {
-                joints.insert(std::end(joints), std::begin(extractedIntData), std::end(extractedIntData));
+                unsigned char *data = (unsigned char *) (buffer.data.data() + bufferView.byteOffset);
+                std::vector<unsigned char> jointsData{data, data + bufferView.byteLength / sizeof(unsigned char)};
+
+                _joints.insert(std::end(_joints), std::begin(jointsData), std::end(jointsData));
             }
 
             else if (attrib.first.compare("WEIGHTS_0") == 0)
             {
-                weights.insert(std::end(weights), std::begin(extractedData), std::end(extractedData));
+                _weights.insert(std::end(_weights), std::begin(attribData), std::end(attribData));
             }
         }
     }
@@ -250,6 +277,7 @@ static size_t writeCallback(void *contents, size_t size, size_t nmemb, void *use
 JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender_tiny_1gltf_1loader_loadBinaryFromFile
 (JNIEnv* env, jobject obj, jstring filename)
 {
+    // java string to c++ const char*
     const char* nativeFilename = env->GetStringUTFChars(filename, 0);
 
     // load the model
@@ -277,7 +305,7 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     env->ReleaseStringUTFChars(filename, nativeFilename);
 
     std::vector<unsigned char> file { readBuffer.begin(), readBuffer.end() };
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file, "human/glb");
+    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file, ".glb");
 
     if (!warn.empty())
     {
@@ -300,8 +328,6 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
     const tinygltf::Scene& scene = model.scenes[model.defaultScene];
     const tinygltf::Node& rootNode = model.nodes[scene.nodes[0]];
 
-    mesh.extractGlobalTransformation(rootNode);
-
     // mesh node must be the child of root node
     for (const auto& childrenIndex : rootNode.children)
     {
@@ -317,28 +343,36 @@ JNIEXPORT void JNICALL Java_com_google_ar_core_examples_java_common_samplerender
 
                 const tinygltf::Skin& skin = model.skins[children.skin];
 
-                mat4 mat = identityMat4;
+                mat4 globalTransformationMat4 = identityMat4;
+                vec3 translation { 0.0f, 0.0f, 0.0f };
+                vec4 rotation { 0.0f, 0.0f, 0.0f, 1.0f };
+                vec3 scale { 1.0f, 1.0f, 1.0f };
 
                 if (!rootNode.translation.empty())
                 {
-                    mat[12] += rootNode.translation[0];
-                    mat[13] += rootNode.translation[1];
-                    mat[14] += rootNode.translation[2];
+                    translation[0] = rootNode.translation[0];
+                    translation[1] = rootNode.translation[1];
+                    translation[2] = rootNode.translation[2];
                 }
 
                 if (!rootNode.rotation.empty())
                 {
-                    mat4 rotationMatrix = quaternionToMat4(rootNode.rotation[0],
-                                                           rootNode.rotation[1],
-                                                           rootNode.rotation[2],
-                                                           rootNode.rotation[3]);
-                    mat = multiplyMM(mat, rotationMatrix);
+                    rotation[0] = rootNode.rotation[0];
+                    rotation[1] = rootNode.rotation[1];
+                    rotation[2] = rootNode.rotation[2];
+                    rotation[3] = rootNode.rotation[3];
                 }
 
-                for (const auto& jointIndex : skin.joints)
+                if (!rootNode.scale.empty())
                 {
-                    mesh.extractJointTransformation(mat, jointIndex, model);
+                    scale[0] = rootNode.scale[0];
+                    scale[1] = rootNode.scale[1];
+                    scale[2] = rootNode.scale[2];
                 }
+
+                globalTransformationMat4 = mat4Transform(globalTransformationMat4, translation, rotation, scale);
+
+                mesh.extractJointTransformation(globalTransformationMat4, skin.joints[0], model);
             }
 
             break;
@@ -360,24 +394,16 @@ void aMesh::copyToJava(JNIEnv* env, jobject obj)
     jfieldID jointsField = env->GetFieldID(loaderClass, "joints", "[F");
     jfieldID weightsField = env->GetFieldID(loaderClass, "weights", "[F");
 
-    jfieldID scaleField = env->GetFieldID(loaderClass, "scale", "[F");
-    jfieldID translationField = env->GetFieldID(loaderClass, "translation", "[F");
-    jfieldID rotationField = env->GetFieldID(loaderClass, "rotation", "[F");
-
-    jfieldID jointTransformationField = env->GetFieldID(loaderClass, "jointTransformation", "[F");
+    jfieldID jointTransformationsField = env->GetFieldID(loaderClass, "jointTransformations", "[F");
     jfieldID inverseBindMatricesField = env->GetFieldID(loaderClass, "inverseBindMatrices", "[F");
 
-    copyToJavaClass<int>(env, obj, indices, indicesField);
-    copyToJavaClass<float>(env, obj, vertices, verticesField);
-    copyToJavaClass<float>(env, obj, normals, normalsField);
-    copyToJavaClass<float>(env, obj, texcoords, texcoordsField);
-    copyToJavaClass<float>(env, obj, joints, jointsField);
-    copyToJavaClass<float>(env, obj, weights, weightsField);
+    copyToJavaClass<int>(env, obj, _indices, indicesField);
+    copyToJavaClass<float>(env, obj, _vertices, verticesField);
+    copyToJavaClass<float>(env, obj, _normals, normalsField);
+    copyToJavaClass<float>(env, obj, _texcoords, texcoordsField);
+    copyToJavaClass<float>(env, obj, _joints, jointsField);
+    copyToJavaClass<float>(env, obj, _weights, weightsField);
 
-    copyToJavaClass<float>(env, obj, scale, scaleField);
-    copyToJavaClass<float>(env, obj, translation, translationField);
-    copyToJavaClass<float>(env, obj, rotation, rotationField);
-
-    copyToJavaClass<float>(env, obj, jointTransformation, jointTransformationField);
-    copyToJavaClass<float>(env, obj, inverseBindMatrices, inverseBindMatricesField);
+    copyToJavaClass<float>(env, obj, _jointTransformations, jointTransformationsField);
+    copyToJavaClass<float>(env, obj, _inverseBindMatrices, inverseBindMatricesField);
 }

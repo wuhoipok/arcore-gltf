@@ -162,15 +162,11 @@ public class Mesh implements Closeable {
 
   public static Mesh createFromGltfAsset(SampleRender render, String assetFileName, tiny_gltf_loader loader) throws IOException {
 
-    AssetManager assetManager = render.getAssets();
-
     loader.loadBinaryFromFile(assetFileName);
 
     // Obtain the data from the OBJ, as direct buffers:
     IntBuffer vertexIndicesGltf = loader.getIndices();
     FloatBuffer localCoordinatesGltf = loader.getVertices();
-    FloatBuffer textureCoordinatesGltf = loader.getTexcoords();
-    FloatBuffer normalsGltf = loader.getNormals();
 
     VertexBuffer[] vertexBuffers = {
             new VertexBuffer(render, 3, localCoordinatesGltf),
